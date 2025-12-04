@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { createUIResource } from '@mcp-ui/server';
-import { buyProductRemoteDomScript, checklistRemoteDomScript, feedbackFormScript, remoteDomScript } from './remote-dom-scrips';
+import { buyProductRemoteDomScript, checklistRemoteDomScript, feedbackFormScript, remoteDomScript, USER_SAVED_DOM } from './remote-dom-scrips';
 
 const app = express();
 const port = 8081;
@@ -261,7 +261,7 @@ function makeResource(variant: Variant) {
       uri: 'ui://demo/remote-dom-demo',
       content: {
         type: 'remoteDom',
-        script: buyProductRemoteDomScript, // remoteDomScript, buyProductRemoteDomScript, feedbackFormScript, checklistRemoteDomScript
+        script: USER_SAVED_DOM.remoteDomScript || buyProductRemoteDomScript, // remoteDomScript, buyProductRemoteDomScript, feedbackFormScript, checklistRemoteDomScript
         framework: 'react',
       },
       encoding: 'text',
@@ -323,6 +323,17 @@ app.post('/user/action', (req, res) => {
     const body = req.body;
     console.log('User action recorded: ', body);
     res.json({success: 'recorded your response..'});
+  } catch (err: any) {
+    console.error(err);
+    res.status(500).json({ error: err?.message ?? 'Unknown error' });
+  }
+});
+
+app.post('/user/save', (req, res) => {
+  try {
+    USER_SAVED_DOM.remoteDomScript = req.body.script;
+    console.log('User action recorded: ', USER_SAVED_DOM.remoteDomScript);
+    res.json({success: 'Remote Dom Script saved on server successfully.'});
   } catch (err: any) {
     console.error(err);
     res.status(500).json({ error: err?.message ?? 'Unknown error' });

@@ -1,4 +1,6 @@
-
+export const USER_SAVED_DOM = {
+  remoteDomScript: ``
+};
 
 export const feedbackFormScript = `
     const rootStack = document.createElement('ui-stack');
@@ -80,15 +82,15 @@ export const buyProductRemoteDomScript =
    stack.setAttribute('align', 'center');
 
    const text1 = document.createElement('ui-text');
-   text1.setAttribute('content', 'Do you want to proceed to buy?');
+   text1.setAttribute('content', 'Do you want to proceed to buy a following item?');
 
-   // Create a centered container for the logo
+   // Create a centered container for the image
 	 const imageContainer = document.createElement('ui-stack');
 	 imageContainer.setAttribute('direction', 'vertical');
 	 imageContainer.setAttribute('spacing', '0');
 	 imageContainer.setAttribute('align', 'center');
 
-	 // Create the logo image (starts with light theme)
+	 // Create the image
 	 const image = document.createElement('ui-image');
 	 image.setAttribute('src', 'https://i.pinimg.com/736x/f8/d5/e1/f8d5e17a7aba214596a3a28422c468a5.jpg');
 	 image.setAttribute('alt', 'Image Not Found');
@@ -104,7 +106,8 @@ export const buyProductRemoteDomScript =
                 payload: {
                   toolName: 'uiInteraction',
                   params: {
-                    action: 'buy-button-click',
+                    action: 'buy-item',
+                    productId: '40001',
                     from: 'remote-dom-custom-library',
                     clickedAt: new Date().toISOString(),
                   }

@@ -3,14 +3,9 @@ import {
   UIResourceRenderer,
   UIActionResult,
   isUIResource,
-  basicComponentLibrary,
-  remoteButtonDefinition,
-  remoteTextDefinition,
 } from '@mcp-ui/client';
 import type { Resource } from '@modelcontextprotocol/sdk/types';
 import {
-  appComponentLibrary,
-  appRemoteElements,
   remoteElements,
 } from './remoteDomLibrary';
 import { radixComponentLibrary } from './radix';
