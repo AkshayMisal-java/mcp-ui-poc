@@ -6,7 +6,7 @@ function Home() {
   return (
       <Routes>
         <Route path="/" element={<App />} />
-        <Route path="/create" element={<CreateDom />} />
+        <Route path="/configurator" element={<CreateDom />} />
       </Routes>
   );
 }

@@ -1,6 +1,3 @@
-export const USER_SAVED_DOM = {
-  remoteDomScript: ``
-};
 
 export const feedbackFormScript = `
     const rootStack = document.createElement('ui-stack');

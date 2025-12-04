@@ -1,7 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import { createUIResource } from '@mcp-ui/server';
-import { buyProductRemoteDomScript, checklistRemoteDomScript, feedbackFormScript, remoteDomScript, USER_SAVED_DOM } from './remote-dom-scrips';
+import { buyProductRemoteDomScript, checklistRemoteDomScript, feedbackFormScript, remoteDomScript } from './remote-dom-scrips';
+import { getRemoteDomByUri, upsertRemoteDom } from './remoteDomRepo';
+import { saveUiAction } from './uiActionsRepo';
 
 const app = express();
 const port = 8081;
@@ -261,7 +263,7 @@ function makeResource(variant: Variant) {
       uri: 'ui://demo/remote-dom-demo',
       content: {
         type: 'remoteDom',
-        script: USER_SAVED_DOM.remoteDomScript || buyProductRemoteDomScript, // remoteDomScript, buyProductRemoteDomScript, feedbackFormScript, checklistRemoteDomScript
+        script: buyProductRemoteDomScript, // remoteDomScript, buyProductRemoteDomScript, feedbackFormScript, checklistRemoteDomScript
         framework: 'react',
       },
       encoding: 'text',
@@ -318,25 +320,101 @@ app.get('/ui/:variant', (req, res) => {
   }
 });
 
-app.post('/user/action', (req, res) => {
+// Save / update Remote DOM
+app.post('/remote-dom', async (req, res) => {
   try {
-    const body = req.body;
-    console.log('User action recorded: ', body);
-    res.json({success: 'recorded your response..'});
+    const { uri='ui://demo/remote-dom-demo', script, framework='react', 
+      description='Remote DOM script' } = req.body;
+
+    if (!script) {
+      return res.status(400).json({ error: 'uri and script are required' });
+    }
+
+    const saved = await upsertRemoteDom({ uri, script, framework, description });
+    res.json({success: 'Remote Dom Script saved on server successfully.'});
   } catch (err: any) {
-    console.error(err);
-    res.status(500).json({ error: err?.message ?? 'Unknown error' });
+    console.error('Error saving remote dom:', err);
+    res.status(500).json({ error: 'internal_error' });
   }
 });
 
-app.post('/user/save', (req, res) => {
+// Get Remote DOM by uri
+app.get('/remote-dom/', async (req, res) => {
   try {
-    USER_SAVED_DOM.remoteDomScript = req.body.script;
-    console.log('User action recorded: ', USER_SAVED_DOM.remoteDomScript);
-    res.json({success: 'Remote Dom Script saved on server successfully.'});
+    const uri = 'ui://demo/remote-dom-demo';
+    const resource = await getRemoteDomByUri(uri);
+
+    if (!resource) {
+      return res.status(404).json({ error: 'not_found' });
+    }
+    
+    const uiResource = createUIResource({
+      uri: 'ui://demo/remote-dom-demo',
+      content: {
+        type: 'remoteDom',
+        script: resource.script,
+        framework: resource.framework as 'react' | 'webcomponents',
+      },
+      encoding: 'text',
+      uiMetadata: {
+        'preferred-frame-size': ['420px', '220px'],
+        'initial-render-data': {
+          serverMessage: resource.description || 'Hello from remoteDom resource (custom library)',
+          variant: 'remote-dom',
+        },
+      },
+    });
+
+    res.json(uiResource);
   } catch (err: any) {
-    console.error(err);
-    res.status(500).json({ error: err?.message ?? 'Unknown error' });
+    console.error('Error fetching remote dom:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// Get Remote DOM by uri
+app.get('/remote-dom/script', async (req, res) => {
+  try {
+    const uri = 'ui://demo/remote-dom-demo';
+    const resource = await getRemoteDomByUri(uri);
+
+    if (!resource) {
+      return res.status(404).json({ error: 'not_found' });
+    }
+    
+    res.json({script: resource.script});
+  } catch (err: any) {
+    console.error('Error fetching remote dom:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+app.post('/user/action', async (req, res) => {
+  try {
+    const {
+      sessionId,
+      resourceUri,
+      actionType,
+      toolName,
+      payload,
+    } = req.body;
+
+    if (!actionType) {
+      return res.status(400).json({ error: 'actionType is required' });
+    }
+
+    const saved = await saveUiAction({
+      sessionId,
+      resourceUri,
+      actionType,
+      toolName,
+      payload: payload ?? {},
+    });
+
+    res.json(saved);
+  } catch (err: any) {
+    console.error('Error saving UI action:', err);
+    res.status(500).json({ error: 'internal_error' });
   }
 });
 

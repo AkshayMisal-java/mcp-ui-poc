@@ -17,7 +17,6 @@ const RadixText = React.forwardRef<
     [key: string]: any;
   }
 >(({ content, children, htmlFor, variant = 'large', ...props }, ref) => {
-  console.log('text props: ',props, variant);
   const getStyles = () => {
     const baseStyles = {
         fontSize: '15px',
@@ -31,7 +30,7 @@ const RadixText = React.forwardRef<
         textShadow: '0 1px 2px rgba(108, 43, 217, 0.1)',
     };
     if(variant === 'small'){
-      return { ...baseStyles, fontSize: '8px', color: 'red'};
+      return { ...baseStyles, fontSize: '10px', color: 'black'};
     }
     return baseStyles;
   };

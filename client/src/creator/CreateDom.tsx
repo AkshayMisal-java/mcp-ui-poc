@@ -12,6 +12,7 @@ import {
   remoteElements,
 } from '../remoteDomLibrary';
 
+const SERVER_BASE = 'http://localhost:8081';
 const remoteDomScript1 = `
       const stack = document.createElement('ui-stack');
       stack.setAttribute('direction', 'vertical');
@@ -49,13 +50,31 @@ const remoteDomScript1 = `
     `;
 
 function CreateDom() {
-  const [scriptContent, setScriptContent] = useState(remoteDomScript1);
-  const [inputValue, setInputValue] = useState(remoteDomScript1);
+  const [scriptContent, setScriptContent] = useState('');
+  const [inputValue, setInputValue] = useState('');
   const [saveResponseValue, setSaveResponseValue] = useState('');
   const [isPending, startTransition] = useTransition();
+  const [loading, setLoading] = useState(false);
+ const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    
+    setLoading(true);
+        setError(null);
+        fetch(`${SERVER_BASE}/remote-dom/script`)
+          .then((res) => res.json())
+          .then((json) => {
+              console.log('server response: ', json);
+              if(json && json.script){
+                setScriptContent(json.script);
+                setInputValue(json.script);
+              }else {
+                 setError(json.error ?? 'Fetch error');
+              }
+          })
+          .catch((err) => {
+            setError(err.message ?? 'Fetch error');
+          })
+          .finally(() => setLoading(false));
   }, []);
 
   // Debounce the script content updates
@@ -81,7 +100,7 @@ function CreateDom() {
   );
 
   const postCall = async () => {
-    const json = await apiCall("http://localhost:8081/user/save", {script: inputValue});
+    const json = await apiCall("http://localhost:8081/remote-dom", {script: inputValue});
     setSaveResponseValue(json.success);
   }
 
@@ -103,13 +122,43 @@ function CreateDom() {
         opacity: isPending ? 0.8 : 1,
         maxWidth: '1400px',
         margin: '0 auto',
-        padding: '2rem',
         width: '100%',
         boxSizing: 'border-box',
       }}
     >
-      <h1 style={{ textAlign: 'center' }}>MCP-UI Remote DOM Creator</h1>
-
+      <h1 style={{ textAlign: 'center' }}>Remote DOM Script configurator</h1>
+      <div style={{ marginTop: '2rem', marginBottom: '2rem' }}>
+        <div style={{ display: 'flex', marginBottom: '1rem' }}>
+          <button onClick={postCall} style={{marginRight: '1rem' }}>Save</button>
+          <p style={{ color: '#043502ff' }}>
+            {saveResponseValue}
+          </p>
+        </div>
+        <p style={{ fontSize: '0.9em', color: '#666', marginBottom: '1rem' }}>
+          Edit the Server's Resource `script` below to see the changes reflected in the host:
+        </p>
+        <textarea
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          style={{
+            width: '100%',
+            height: '300px',
+            fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+            fontSize: '12px',
+            padding: '1rem',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            resize: 'vertical',
+            backgroundColor: '#f8f9fa',
+            color: '#333',
+            lineHeight: '1.4',
+          }}
+          placeholder="Enter your remote DOM script here..."
+        />
+      </div>
+      <div>
+        <h3>Preview: </h3>
+      </div>
       <div
         style={{
           display: 'grid',
@@ -135,34 +184,7 @@ function CreateDom() {
           />
         </div>
       </div>
-      <div style={{ marginTop: '2rem', marginBottom: '2rem' }}>
-        <h3>Playground</h3>
-        <p style={{ fontSize: '0.9em', color: '#666', marginBottom: '1rem' }}>
-          Edit the Server's Resource `script` below to see the changes reflected in the host:
-        </p>
-        <textarea
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          style={{
-            width: '100%',
-            height: '300px',
-            fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
-            fontSize: '12px',
-            padding: '1rem',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            resize: 'vertical',
-            backgroundColor: '#f8f9fa',
-            color: '#333',
-            lineHeight: '1.4',
-          }}
-          placeholder="Enter your remote DOM script here..."
-        />
-        <button onClick={postCall}>Save</button>
-        <p style={{ fontSize: '0.9em', color: '#666', marginBottom: '1rem' }}>
-          {saveResponseValue}
-        </p>
-      </div>
+     
     </div>
   );
 }

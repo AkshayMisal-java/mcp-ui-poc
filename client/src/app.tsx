@@ -14,14 +14,14 @@ type UIResourceBlock = {
   type: 'resource';
   resource: Resource;
 };
-
-const VARIANTS = ['raw-basic', 'raw-dark', 'external', 'remote-dom-basic', 'remote-dom'] as const;
+//
+const VARIANTS = ['raw-basic', 'raw-dark', 'external', 'remote-dom-basic','remote-dom'] as const;
 type Variant = (typeof VARIANTS)[number];
 
 const SERVER_BASE = 'http://localhost:8081';
 
 const App: React.FC = () => {
-  const [variant, setVariant] = useState<Variant>('raw-basic');
+  const [variant, setVariant] = useState<Variant>('remote-dom');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resource, setResource] = useState<UIResourceBlock | null>(null);
@@ -34,7 +34,8 @@ const App: React.FC = () => {
     setLoading(true);
     setError(null);
     console.log('variant: ', variant);
-    fetch(`${SERVER_BASE}/ui/${variant}`)
+    const url = variant === 'remote-dom' ? `${SERVER_BASE}/remote-dom/` : `${SERVER_BASE}/ui/${variant}`;
+    fetch(url)
       .then((res) => res.json())
       .then((json) => {
         if (isUIResource(json)) {
@@ -88,7 +89,14 @@ const App: React.FC = () => {
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify(input)}
+      body: JSON.stringify({
+          sessionId: 'user-123',
+          resourceUri: input?.uri ?? resource?.resource?.uri,
+          actionType: input.type,
+          toolName: (input as any).payload?.toolName, // adjust to your action shape
+          payload: input.payload || {},
+      })
+    }
   );
   const json = await res.json();
   return json;
