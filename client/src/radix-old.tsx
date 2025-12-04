@@ -6,23 +6,6 @@ import * as Separator from '@radix-ui/react-separator';
 import * as Label from '@radix-ui/react-label';
 import type { ComponentLibrary } from '@mcp-ui/client';
 
-// Shared design tokens
-const fontFamily =
-  '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
-
-const colors = {
-  primary: '#6c2bd9',
-  primarySoft: '#ede9fe',
-  primarySofter: '#f5f3ff',
-  primaryStrong: '#7c3aed',
-  text: '#0f172a',
-  textMuted: '#64748b',
-  borderSoft: '#e5d3ff',
-  borderSubtle: '#e5e7eb',
-  surface: '#ffffff',
-  surfaceSoft: '#f9fafb',
-};
-
 // Radix UI Text component using Label primitive
 const RadixText = React.forwardRef<
   HTMLLabelElement,
@@ -31,37 +14,25 @@ const RadixText = React.forwardRef<
     children?: React.ReactNode;
     htmlFor?: string;
     variant?: 'small' | 'large';
-    align?: 'left' | 'center' | 'right';
     [key: string]: any;
   }
->(({ content, children, htmlFor, variant = 'large', align = 'left', ...props }, ref) => {
+>(({ content, children, htmlFor, variant = 'large', ...props }, ref) => {
   const getStyles = () => {
-    const base: React.CSSProperties = {
-      fontFamily,
-      display: 'block',
-      marginBottom: '4px',
-      textAlign: align,
-      textRendering: 'geometricPrecision',
+    const baseStyles = {
+        fontSize: '15px',
+        fontWeight: '600',
+        lineHeight: '1.4',
+        color: '#6c2bd9',
+        display: 'block',
+        marginBottom: '8px',
+        fontFamily:
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        textShadow: '0 1px 2px rgba(108, 43, 217, 0.1)',
     };
-
-    if (variant === 'small') {
-      return {
-        ...base,
-        fontSize: '12px',
-        fontWeight: 500,
-        lineHeight: 1.4,
-        color: colors.textMuted,
-      };
+    if(variant === 'small'){
+      return { ...baseStyles, fontSize: '10px', color: 'black'};
     }
-
-    return {
-      ...base,
-      fontSize: '16px',
-      fontWeight: 600,
-      lineHeight: 1.4,
-      color: colors.primary,
-      textShadow: '0 1px 2px rgba(15, 23, 42, 0.05)',
-    };
+    return baseStyles;
   };
 
   return React.createElement(
@@ -83,102 +54,114 @@ const RadixButton = React.forwardRef<
   {
     label?: string;
     onPress?: (event?: React.MouseEvent<HTMLButtonElement>) => void;
-    onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
+    onClick?: (event?: React.MouseEvent<HTMLButtonElement>) => void;
     children?: React.ReactNode;
     variant?: 'solid' | 'soft' | 'outline';
-    disabled?: boolean;
     [key: string]: any;
   }
->(({ label, onPress, onClick, children, variant = 'solid', disabled = false, ...props }, ref) => {
+>(({ label, onPress, onClick, children, variant = 'solid', ...props }, ref) => {
+  console.log('button props: ', variant, props);
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    if (disabled) {
-      event.preventDefault();
-      return;
-    }
+    console.log('RadixButton clicked, calling handlers:', {
+      label,
+      variant,
+      onPress: !!onPress,
+      onClick: !!onClick,
+    });
 
-    // Do not pass the event object further for remote-dom postMessage
+    // Call onPress if it exists (from remote press event)
+    // Important: Don't pass the event object as it cannot be cloned for postMessage
     if (onPress) {
       onPress();
-    } else if (onClick) {
+    }
+
+    // Call onClick if it exists (standard React handler)
+    else if (onClick) {
       onClick(event);
     }
   };
 
-  const getButtonStyles = (): React.CSSProperties => {
-    const base: React.CSSProperties = {
-      all: 'unset',
+  const getButtonStyles = () => {
+    const baseStyles = {
+      all: 'unset' as const,
       display: 'inline-flex',
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 9999,
-      padding: '0 18px',
+      borderRadius: '12px',
+      padding: '0 20px',
       fontSize: '14px',
-      lineHeight: 1,
-      fontWeight: 600,
+      lineHeight: '1',
+      fontWeight: '600',
       height: '40px',
-      cursor: disabled ? 'not-allowed' : 'pointer',
-      transition: 'all 0.18s ease-out',
-      borderWidth: 1,
-      borderStyle: 'solid',
+      cursor: 'pointer',
+      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+      border: '2px solid transparent',
       outline: 'none',
-      fontFamily,
-      textTransform: 'none',
-      position: 'relative',
-      overflow: 'hidden',
-      letterSpacing: '0.01em',
-      boxShadow: '0 1px 2px rgba(15, 23, 42, 0.08)',
+      fontFamily:
+        '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      textTransform: 'none' as const,
+      position: 'relative' as const,
+      overflow: 'hidden' as const,
     };
-
-    if (disabled) {
-      return {
-        ...base,
-        background: colors.surfaceSoft,
-        borderColor: colors.borderSubtle,
-        color: '#9ca3af',
-        boxShadow: 'none',
-      };
-    }
 
     switch (variant) {
       case 'soft':
         return {
-          ...base,
-          background: `linear-gradient(135deg, ${colors.primarySofter}, ${colors.primarySoft})`,
-          color: colors.primary,
-          borderColor: 'rgba(124, 58, 237, 0.18)',
+          ...baseStyles,
+          background: 'linear-gradient(135deg, #f3e8ff, #e5d3ff)',
+          color: '#6c2bd9',
+          boxShadow:
+            '0 4px 12px rgba(108, 43, 217, 0.15), inset 0 1px 2px rgba(255, 255, 255, 0.4)',
         };
       case 'outline':
         return {
-          ...base,
-          background: colors.surface,
-          color: colors.primary,
-          borderColor: 'rgba(124, 58, 237, 0.5)',
+          ...baseStyles,
+          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.7))',
+          color: '#6c2bd9',
+          borderColor: '#6c2bd9',
+          borderWidth: '2px',
+          borderStyle: 'solid',
+          boxShadow: '0 2px 8px rgba(108, 43, 217, 0.1)',
         };
-      default: {
-        // solid
+      default: // solid
         return {
-          ...base,
-          background: `linear-gradient(135deg, ${colors.primary}, ${colors.primaryStrong})`,
-          color: '#ffffff',
-          borderColor: 'transparent',
-          boxShadow: '0 10px 30px rgba(124, 58, 237, 0.35)',
+          ...baseStyles,
+          background: 'linear-gradient(135deg, #6c2bd9, #8b5cf6)',
+          color: 'white',
+          boxShadow: '0 6px 20px rgba(108, 43, 217, 0.3), inset 0 1px 2px rgba(255, 255, 255, 0.2)',
         };
-      }
     }
   };
 
   const handleMouseEnter = (e: React.MouseEvent<HTMLButtonElement>) => {
-    if (disabled) return;
     const target = e.currentTarget;
-    target.style.transform = 'translateY(-1px)';
-    target.style.boxShadow = '0 12px 32px rgba(124, 58, 237, 0.4)';
+    switch (variant) {
+      case 'soft':
+        target.style.background = 'linear-gradient(135deg, #ede9fe, #ddd6fe)';
+        target.style.transform = 'translateY(-2px)';
+        target.style.boxShadow =
+          '0 8px 25px rgba(108, 43, 217, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.4)';
+        break;
+      case 'outline':
+        target.style.background = 'linear-gradient(135deg, #f3f4f6, #e5e7eb)';
+        target.style.transform = 'translateY(-2px)';
+        target.style.boxShadow = '0 6px 20px rgba(108, 43, 217, 0.2)';
+        break;
+      default:
+        target.style.background = 'linear-gradient(135deg, #7c3aed, #9333ea)';
+        target.style.transform = 'translateY(-2px)';
+        target.style.boxShadow =
+          '0 10px 30px rgba(108, 43, 217, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.2)';
+        break;
+    }
   };
 
   const handleMouseLeave = (e: React.MouseEvent<HTMLButtonElement>) => {
     const target = e.currentTarget;
-    const baseStyles = getButtonStyles();
+    const styles = getButtonStyles();
+    target.style.background = styles.background as string;
     target.style.transform = 'translateY(0)';
-    target.style.boxShadow = (baseStyles.boxShadow as string) || 'none';
+    target.style.boxShadow = styles.boxShadow as string;
   };
 
   const displayText = label || children || 'Button';
@@ -191,7 +174,6 @@ const RadixButton = React.forwardRef<
       onMouseEnter: handleMouseEnter,
       onMouseLeave: handleMouseLeave,
       style: getButtonStyles(),
-      disabled,
       ...props,
     },
     displayText,
@@ -222,33 +204,23 @@ const RadixStack = React.forwardRef<
     },
     ref,
   ) => {
-    const spacingPx = Number(spacing || '16');
-    const isInline = spacingPx <= 8; // small spacing → treat as simple layout, not a card
-
-    const style: React.CSSProperties = {
-      display: 'flex',
-      flexDirection: direction === 'horizontal' ? 'row' : 'column',
-      gap: `${spacingPx}px`,
-      alignItems: align,
-      justifyContent: justify,
-      boxSizing: 'border-box',
-    };
-
-    if (!isInline) {
-      Object.assign(style, {
-        padding: '16px',
-        borderRadius: '18px',
-        background: `linear-gradient(135deg, ${colors.surfaceSoft}, ${colors.primarySofter})`,
-        border: `1px solid ${colors.borderSoft}`,
-        boxShadow: '0 12px 32px rgba(15, 23, 42, 0.08)',
-      });
-    }
-
     return React.createElement(
       'div',
       {
         ref,
-        style,
+        style: {
+          display: 'flex',
+          flexDirection: direction === 'horizontal' ? 'row' : 'column',
+          gap: `${spacing}px`,
+          alignItems: align,
+          justifyContent: justify,
+          padding: '20px',
+          borderRadius: '16px',
+          background: 'linear-gradient(135deg, #faf5ff, #f3e8ff)',
+          border: '0px solid #e5d3ff',
+          boxShadow: '0 8px 32px rgba(108, 43, 217, 0.1), inset 0 1px 2px rgba(255, 255, 255, 0.6)',
+          position: 'relative' as const,
+        },
         ...props,
       },
       children,
@@ -281,26 +253,27 @@ const RadixImage = React.forwardRef<
     style: {
       maxWidth: '100%',
       height: 'auto',
-      borderRadius: '18px',
-      border: `1px solid ${colors.borderSoft}`,
-      boxShadow: '0 12px 32px rgba(15, 23, 42, 0.14)',
-      transition: 'transform 0.2s ease-out, box-shadow 0.2s ease-out, border-color 0.2s ease-out',
-      background: `linear-gradient(135deg, ${colors.surfaceSoft}, ${colors.primarySofter})`,
+      borderRadius: '16px',
+      border: '3px solid #e5d3ff',
+      boxShadow: '0 12px 32px rgba(108, 43, 217, 0.15), inset 0 1px 2px rgba(255, 255, 255, 0.6)',
+      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+      background: 'linear-gradient(135deg, #faf5ff, #f3e8ff)',
       padding: '4px',
       display: 'block',
-      objectFit: 'cover',
     },
     onMouseEnter: (e: React.MouseEvent<HTMLImageElement>) => {
       const target = e.currentTarget;
-      target.style.transform = 'scale(1.02) translateY(-2px)';
-      target.style.boxShadow = '0 20px 40px rgba(15, 23, 42, 0.18)';
-      target.style.borderColor = colors.primarySoft;
+      target.style.transform = 'scale(1.02) translateY(-4px)';
+      target.style.boxShadow =
+        '0 20px 40px rgba(108, 43, 217, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.6)';
+      target.style.borderColor = '#c084fc';
     },
     onMouseLeave: (e: React.MouseEvent<HTMLImageElement>) => {
       const target = e.currentTarget;
       target.style.transform = 'scale(1) translateY(0)';
-      target.style.boxShadow = '0 12px 32px rgba(15, 23, 42, 0.14)';
-      target.style.borderColor = colors.borderSoft;
+      target.style.boxShadow =
+        '0 12px 32px rgba(108, 43, 217, 0.15), inset 0 1px 2px rgba(255, 255, 255, 0.6)';
+      target.style.borderColor = '#e5d3ff';
     },
     ...props,
   });
@@ -321,22 +294,19 @@ const RadixSeparator = React.forwardRef<
     orientation: orientation as 'horizontal' | 'vertical',
     decorative,
     style: {
+      background: 'linear-gradient(90deg, transparent, #c084fc, transparent)',
       margin: orientation === 'horizontal' ? '16px 0' : '0 16px',
-      borderRadius: 9999,
-      background:
-        orientation === 'horizontal'
-          ? 'linear-gradient(90deg, transparent, rgba(148,163,184,0.6), transparent)'
-          : 'linear-gradient(180deg, transparent, rgba(148,163,184,0.6), transparent)',
+      borderRadius: '1px',
       ...(orientation === 'horizontal'
-        ? { height: '1px', width: '100%' }
-        : { width: '1px', height: '30px' }),
+        ? { height: '2px', width: '100%' }
+        : { width: '2px', height: '30px' }),
     },
     ...props,
   });
 });
 RadixSeparator.displayName = 'RadixSeparator';
 
-// Radix Dialog component
+// Radix Dialog component - converted to React.createElement to avoid JSX issues
 const RadixDialog = React.forwardRef<
   HTMLDivElement,
   {
@@ -367,17 +337,40 @@ const RadixDialog = React.forwardRef<
       React.createElement(
         Dialog.Trigger,
         { asChild: true },
-        React.createElement(RadixButton, { variant: 'soft', label: trigger }),
+        React.createElement(
+          'button',
+          {
+            style: {
+              all: 'unset',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '12px',
+              padding: '0 20px',
+              fontSize: '14px',
+              lineHeight: '1',
+              fontWeight: '600',
+              height: '40px',
+              cursor: 'pointer',
+              background: 'linear-gradient(135deg, #6c2bd9, #8b5cf6)',
+              color: 'white',
+              border: 'none',
+              boxShadow: '0 6px 20px rgba(108, 43, 217, 0.3)',
+              transition: 'all 0.2s ease',
+            },
+          },
+          trigger,
+        ),
       ),
       React.createElement(
         Dialog.Portal,
         {},
         React.createElement(Dialog.Overlay, {
           style: {
-            backgroundColor: 'rgba(15, 23, 42, 0.4)',
+            backgroundColor: 'rgba(108, 43, 217, 0.4)',
             position: 'fixed',
             inset: 0,
-            backdropFilter: 'blur(4px)',
+            animation: 'fadeIn 150ms ease-out',
           },
         }),
         React.createElement(
@@ -385,106 +378,89 @@ const RadixDialog = React.forwardRef<
           {
             ref,
             style: {
-              background: `linear-gradient(135deg, ${colors.surface}, ${colors.surfaceSoft})`,
-              borderRadius: '18px',
-              border: `1px solid ${colors.borderSoft}`,
-              boxShadow:
-                '0 24px 60px rgba(15, 23, 42, 0.35), 0 10px 20px rgba(15, 23, 42, 0.16)',
+              backgroundColor: 'white',
+              borderRadius: '16px',
+              background: 'linear-gradient(135deg, #ffffff, #faf5ff)',
+              border: '2px solid #e5d3ff',
+              boxShadow: '0 20px 50px rgba(108, 43, 217, 0.2), 0 10px 30px rgba(108, 43, 217, 0.1)',
               position: 'fixed',
               top: '50%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
               width: '90vw',
-              maxWidth: '520px',
+              maxWidth: '500px',
               maxHeight: '85vh',
-              padding: '24px 24px 20px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
+              padding: '32px',
+              animation: 'contentShow 150ms ease-out',
             },
             ...props,
           },
           React.createElement(
-            'div',
+            Dialog.Title,
             {
               style: {
-                display: 'flex',
-                alignItems: 'flex-start',
-                justifyContent: 'space-between',
-                gap: '12px',
+                margin: 0,
+                fontWeight: '700',
+                fontSize: '20px',
+                lineHeight: '1.2',
+                color: '#6c2bd9',
+                marginBottom: description ? '12px' : '20px',
+                fontFamily:
+                  '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
               },
             },
+            title,
+          ),
+          description &&
             React.createElement(
-              'div',
-              { style: { flex: 1, minWidth: 0 } },
-              React.createElement(
-                Dialog.Title,
-                {
-                  style: {
-                    margin: 0,
-                    fontWeight: 700,
-                    fontSize: '18px',
-                    lineHeight: 1.3,
-                    color: colors.primary,
-                    fontFamily,
-                  },
+              Dialog.Description,
+              {
+                style: {
+                  margin: 0,
+                  fontSize: '15px',
+                  lineHeight: '1.5',
+                  color: '#64748b',
+                  marginBottom: '20px',
+                  fontFamily:
+                    '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
                 },
-                title,
-              ),
-              description &&
-                React.createElement(
-                  Dialog.Description,
-                  {
-                    style: {
-                      margin: '6px 0 0',
-                      fontSize: '14px',
-                      lineHeight: 1.5,
-                      color: colors.textMuted,
-                      fontFamily,
-                    },
-                  },
-                  description,
-                ),
+              },
+              description,
             ),
+          React.createElement('div', { style: { marginTop: '20px' } }, children),
+          React.createElement(
+            Dialog.Close,
+            { asChild: true },
             React.createElement(
-              Dialog.Close,
-              { asChild: true },
-              React.createElement('button', {
-                'aria-label': 'Close',
-                children: '×',
+              'button',
+              {
                 style: {
                   all: 'unset',
-                  fontFamily,
-                  borderRadius: '9999px',
-                  height: '28px',
-                  width: '28px',
+                  fontFamily: 'inherit',
+                  borderRadius: '50%',
+                  height: '32px',
+                  width: '32px',
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: colors.textMuted,
+                  color: '#94a3b8',
+                  position: 'absolute',
+                  top: '16px',
+                  right: '16px',
                   cursor: 'pointer',
                   fontSize: '18px',
-                  fontWeight: 600,
-                  backgroundColor: 'rgba(148, 163, 184, 0.12)',
-                  transition: 'background-color 0.15s ease-out, color 0.15s ease-out',
+                  fontWeight: 'bold',
+                  transition: 'all 0.2s ease',
+                  background: 'rgba(148, 163, 184, 0.1)',
+                  ':hover': {
+                    background: 'rgba(148, 163, 184, 0.2)',
+                    color: '#64748b',
+                  },
                 },
-                onMouseEnter: (e: React.MouseEvent<HTMLButtonElement>) => {
-                  const t = e.currentTarget;
-                  t.style.backgroundColor = 'rgba(148, 163, 184, 0.22)';
-                  t.style.color = colors.text;
-                },
-                onMouseLeave: (e: React.MouseEvent<HTMLButtonElement>) => {
-                  const t = e.currentTarget;
-                  t.style.backgroundColor = 'rgba(148, 163, 184, 0.12)';
-                  t.style.color = colors.textMuted;
-                },
-              }),
+                'aria-label': 'Close',
+              },
+              '×',
             ),
-          ),
-          React.createElement(
-            'div',
-            { style: { marginTop: '12px' } },
-            children,
           ),
         ),
       ),
@@ -507,6 +483,7 @@ const RadixTextInput = React.forwardRef<
 >((props, ref) => {
   const { value, placeholder, type = 'text', disabled, onChange, ...rest } = props;
 
+  // ❌ children + dangerouslySetInnerHTML are not allowed on <input>
   const { children, dangerouslySetInnerHTML, ...safeRest } = rest;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -525,36 +502,37 @@ const RadixTextInput = React.forwardRef<
     style: {
       width: '100%',
       boxSizing: 'border-box',
-      padding: '9px 11px',
+      padding: '10px 12px',
       borderRadius: '10px',
-      border: `1px solid ${colors.borderSubtle}`,
+      border: '2px solid #e5d3ff',
       outline: 'none',
       fontSize: '14px',
-      lineHeight: 1.4,
-      fontFamily,
-      backgroundColor: colors.surface,
-      boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
-      color: colors.text,
-      transition:
-        'border-color 0.16s ease-out, box-shadow 0.16s ease-out, background-color 0.16s ease-out',
+      lineHeight: '1.4',
+      fontFamily:
+        '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      background: 'linear-gradient(135deg, #ffffff, #faf5ff)',
+      boxShadow: '0 4px 12px rgba(108, 43, 217, 0.12), inset 0 1px 2px rgba(255, 255, 255, 0.8)',
+      color: '#0f172a',
+      transition: 'all 0.2s ease',
     },
     onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
       const target = e.currentTarget;
-      target.style.borderColor = colors.primarySoft;
-      target.style.boxShadow = '0 0 0 1px rgba(124, 58, 237, 0.35)';
-      target.style.backgroundColor = colors.surfaceSoft;
+      target.style.borderColor = '#c084fc';
+      target.style.boxShadow =
+        '0 6px 18px rgba(108, 43, 217, 0.2), inset 0 1px 2px rgba(255, 255, 255, 0.9)';
     },
     onBlur: (e: React.FocusEvent<HTMLInputElement>) => {
       const target = e.currentTarget;
-      target.style.borderColor = colors.borderSubtle;
-      target.style.boxShadow = '0 1px 2px rgba(15, 23, 42, 0.04)';
-      target.style.backgroundColor = colors.surface;
+      target.style.borderColor = '#e5d3ff';
+      target.style.boxShadow =
+        '0 4px 12px rgba(108, 43, 217, 0.12), inset 0 1px 2px rgba(255, 255, 255, 0.8)';
     },
     ...safeRest,
   });
 });
 RadixTextInput.displayName = 'RadixTextInput';
 
+// Radix Checkbox component (simple styled checkbox + label)
 // Radix Checkbox component
 const RadixCheckbox = React.forwardRef<
   HTMLInputElement,
@@ -568,6 +546,7 @@ const RadixCheckbox = React.forwardRef<
 >((props, ref) => {
   const { checked, label, disabled, onChange, ...rest } = props;
 
+  // ❌ do not forward children / dangerouslySetInnerHTML to <input>
   const { children, dangerouslySetInnerHTML, ...safeRest } = rest;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -584,10 +563,11 @@ const RadixCheckbox = React.forwardRef<
         alignItems: 'center',
         gap: '8px',
         cursor: disabled ? 'not-allowed' : 'pointer',
-        fontSize: '13px',
-        color: colors.text,
+        fontSize: '14px',
+        color: '#0f172a',
         fontWeight: 500,
-        fontFamily,
+        fontFamily:
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
       },
     },
     React.createElement('input', {
@@ -597,30 +577,32 @@ const RadixCheckbox = React.forwardRef<
       disabled,
       onChange: handleChange,
       style: {
-        width: '16px',
-        height: '16px',
+        width: '18px',
+        height: '18px',
         borderRadius: '6px',
-        border: `1px solid ${colors.borderSubtle}`,
+        border: '2px solid #e5d3ff',
         appearance: 'none',
         WebkitAppearance: 'none',
         outline: 'none',
         display: 'inline-block',
         position: 'relative',
-        background: checked ? colors.primary : colors.surface,
+        background: checked
+          ? 'linear-gradient(135deg, #6c2bd9, #8b5cf6)'
+          : 'linear-gradient(135deg, #ffffff, #faf5ff)',
         boxShadow: checked
-          ? '0 2px 6px rgba(124, 58, 237, 0.35)'
-          : '0 1px 2px rgba(15, 23, 42, 0.10)',
-        transition: 'all 0.15s ease-out',
+          ? '0 4px 12px rgba(108, 43, 217, 0.25)'
+          : '0 2px 6px rgba(108, 43, 217, 0.15)',
+        transition: 'all 0.2s ease',
       },
       onMouseEnter: (e: React.MouseEvent<HTMLInputElement>) => {
         const target = e.currentTarget;
-        target.style.boxShadow = '0 3px 8px rgba(124, 58, 237, 0.45)';
+        target.style.boxShadow = '0 6px 16px rgba(108, 43, 217, 0.3)';
       },
       onMouseLeave: (e: React.MouseEvent<HTMLInputElement>) => {
         const target = e.currentTarget;
         target.style.boxShadow = checked
-          ? '0 2px 6px rgba(124, 58, 237, 0.35)'
-          : '0 1px 2px rgba(15, 23, 42, 0.10)';
+          ? '0 4px 12px rgba(108, 43, 217, 0.25)'
+          : '0 2px 6px rgba(108, 43, 217, 0.15)';
       },
       ...safeRest,
     }),
@@ -631,6 +613,7 @@ const RadixCheckbox = React.forwardRef<
   );
 });
 RadixCheckbox.displayName = 'RadixCheckbox';
+
 
 // Radix Feedback Form component
 const RadixFeedbackForm = React.forwardRef<
@@ -648,16 +631,20 @@ const RadixFeedbackForm = React.forwardRef<
     [key: string]: any;
   }
 >(({ title, description, submitLabel = 'Submit feedback', onSubmit, ...props }, ref) => {
-  console.log('submit label: ',submitLabel);
   const [name, setName] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [feedback, setFeedback] = React.useState('');
   const [allowContact, setAllowContact] = React.useState(true);
 
   const handleSubmit = () => {
-    if (!feedback.trim()) return;
+    console.log('handleSubmit called...');
+    if (!feedback.trim()) {
+      // simple guard: ignore empty feedback
+      return;
+    }
 
     if (onSubmit) {
+       console.log('sumitting data...');
       onSubmit({
         name: name.trim(),
         email: email.trim(),
@@ -667,134 +654,138 @@ const RadixFeedbackForm = React.forwardRef<
     }
   };
 
-  return React.createElement(
-    'div',
-    {
-      ref,
-      style: {
-        width: '100%',
-        maxWidth: '520px',
-        borderRadius: '20px',
-        padding: '20px 20px 18px',
-        background: `linear-gradient(135deg, ${colors.surface}, ${colors.surfaceSoft})`,
-        boxShadow: '0 18px 45px rgba(15, 23, 42, 0.18)',
-        border: `1px solid ${colors.borderSoft}`,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '14px',
-        boxSizing: 'border-box',
-      },
-      ...props,
-    },
-    // Header
-    React.createElement(
-      RadixStack,
-      { direction: 'vertical', spacing: '4' },
-      React.createElement(RadixText, {
-        variant: 'large',
-        content: title || 'Share your feedback',
-      }),
-      React.createElement(RadixText, {
-        variant: 'small',
-        content:
-          description ||
-          'Help us improve by telling us what worked well and what could be better.',
-      }),
-    ),
-
-    // Name
-    React.createElement(
-      RadixStack,
-      { direction: 'vertical', spacing: '4' },
-      React.createElement(RadixText, {
-        variant: 'small',
-        content: 'Name (optional)',
-      }),
-      React.createElement(RadixTextInput, {
-        value: name,
-        placeholder: 'Your name',
-        onChange: (event: React.ChangeEvent<HTMLInputElement> | string) => {
-          const v = typeof event === 'string' ? event : event.target.value;
-          setName(v);
-        },
-      }),
-    ),
-
-    // Email
-    React.createElement(
-      RadixStack,
-      { direction: 'vertical', spacing: '4' },
-      React.createElement(RadixText, {
-        variant: 'small',
-        content: 'Email (optional)',
-      }),
-      React.createElement(RadixTextInput, {
-        value: email,
-        placeholder: 'you@example.com',
-        type: 'email',
-        onChange: (event: React.ChangeEvent<HTMLInputElement> | string) => {
-          const v = typeof event === 'string' ? event : event.target.value;
-          setEmail(v);
-        },
-      }),
-    ),
-
-    // Feedback textarea
-    React.createElement(
-      RadixStack,
-      { direction: 'vertical', spacing: '4' },
-      React.createElement(RadixText, {
-        variant: 'small',
-        content: 'Your feedback',
-      }),
-      React.createElement('textarea', {
-        value: feedback,
-        placeholder:
-          'Tell us what you liked, what was confusing, or what can be improved...',
-        onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => setFeedback(e.target.value),
-        style: {
-          width: '100%',
-          minHeight: '120px',
-          resize: 'vertical',
-          boxSizing: 'border-box',
-          padding: '10px 11px',
-          borderRadius: '12px',
-          border: `1px solid ${colors.borderSubtle}`,
-          outline: 'none',
-          fontSize: '14px',
-          lineHeight: 1.5,
-          fontFamily,
-          backgroundColor: colors.surface,
-          boxShadow: '0 1px 2px rgba(15, 23, 42, 0.06)',
-          color: colors.text,
-        },
-      }),
-    ),
-
-    // Checkbox
-    React.createElement(RadixCheckbox, {
-      checked: allowContact,
-      label: 'Okay to contact me about this feedback',
-      onChange: (event: React.ChangeEvent<HTMLInputElement> | boolean) => {
-        const v = typeof event === 'boolean' ? event : event.target.checked;
-        setAllowContact(v);
-      },
-    }),
-
-    // Submit button
+  return (
     React.createElement(
       'div',
-      { style: { display: 'flex', justifyContent: 'flex-end', marginTop: '4px' } },
-      React.createElement(RadixButton, {
-        label: submitLabel,
-        variant: 'solid',
-        onPress: handleSubmit,
-        disabled: !feedback.trim(),
-      }),
-    ),
+      {
+        ref,
+        style: {
+          width: '100%',
+          maxWidth: '480px',
+          borderRadius: '24px',
+          padding: '24px',
+          background: 'linear-gradient(140deg, #faf5ff, #f3e8ff)',
+          boxShadow:
+            '0 20px 45px rgba(108, 43, 217, 0.25), inset 0 2px 4px rgba(255, 255, 255, 0.8)',
+          border: '2px solid #e5d3ff',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '16px',
+          boxSizing: 'border-box',
+        },
+        ...props,
+      },
+      // Header
+      React.createElement(
+        RadixStack,
+        { direction: 'vertical', spacing: '4' },
+        React.createElement(RadixText, { variant: 'large', content: title || 'Share your feedback' }),
+        React.createElement(RadixText, {
+          variant: 'small',
+          content:
+            description ||
+            'Help us improve by telling us what worked well and what could be better.',
+        }),
+      ),
+
+      // Name
+      React.createElement(
+        RadixStack,
+        { direction: 'vertical', spacing: '4' },
+        React.createElement(RadixText, {
+          variant: 'small',
+          content: 'Name (optional)',
+        }),
+        React.createElement(RadixTextInput, {
+          value: name,
+          placeholder: 'Your name',
+          onChange: (event: React.ChangeEvent<HTMLInputElement> | string) => {
+            const v = typeof event === 'string' ? event : event.target.value;
+            setName(v);
+          },
+        }),
+      ),
+
+      // Email
+      React.createElement(
+        RadixStack,
+        { direction: 'vertical', spacing: '4' },
+        React.createElement(RadixText, {
+          variant: 'small',
+          content: 'Email (optional)',
+        }),
+        React.createElement(RadixTextInput, {
+          value: email,
+          placeholder: 'you@example.com',
+          type: 'email',
+          onChange: (event: React.ChangeEvent<HTMLInputElement> | string) => {
+            const v = typeof event === 'string' ? event : event.target.value;
+            setEmail(v);
+          },
+        }),
+      ),
+
+      // Feedback textarea (simple <textarea>, styled)
+      React.createElement(
+        RadixStack,
+        { direction: 'vertical', spacing: '4' },
+        React.createElement(RadixText, {
+          variant: 'small',
+          content: 'Your feedback',
+        }),
+        React.createElement('textarea', {
+          value: feedback,
+          placeholder: 'Tell us what you liked, what was confusing, or what can be improved...',
+          onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => setFeedback(e.target.value),
+          style: {
+            width: '100%',
+            minHeight: '120px',
+            resize: 'vertical',
+            boxSizing: 'border-box',
+            padding: '10px 12px',
+            borderRadius: '12px',
+            border: '2px solid #e5d3ff',
+            outline: 'none',
+            fontSize: '14px',
+            lineHeight: '1.5',
+            fontFamily:
+              '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+            background: 'linear-gradient(135deg, #ffffff, #faf5ff)',
+            boxShadow:
+              '0 4px 12px rgba(108, 43, 217, 0.12), inset 0 1px 2px rgba(255, 255, 255, 0.8)',
+            color: '#0f172a',
+          },
+        }),
+      ),
+
+      // Checkbox
+      React.createElement(
+        RadixCheckbox,
+        {
+          checked: allowContact,
+          label: 'Okay to contact me about this feedback',
+          onChange: (event: React.ChangeEvent<HTMLInputElement> | boolean) => {
+            const v = typeof event === 'boolean' ? event : event.target.checked;
+            setAllowContact(v);
+          },
+        },
+      ),
+
+      // Submit button
+      React.createElement(
+        'div',
+        { style: { display: 'flex', justifyContent: 'flex-end', marginTop: '8px' } },
+        React.createElement(RadixButton, {
+          label: submitLabel,
+          variant: 'solid',
+          onPress: handleSubmit,
+        }),
+      ),
+    )
   );
 });
 RadixFeedbackForm.displayName = 'RadixFeedbackForm';
+
 
 const RadixChecklistForm = React.forwardRef<
   HTMLDivElement,
@@ -809,7 +800,7 @@ const RadixChecklistForm = React.forwardRef<
     [key: string]: any;
   }
 >(({ title, description, items, submitLabel = 'Save selection', onSubmit, ...props }, ref) => {
-  console.log('submit label: ',submitLabel);
+  // Parse items: prefer JSON array, fallback to comma-separated string
   const labels = React.useMemo(() => {
     if (!items) return [] as string[];
 
@@ -832,6 +823,7 @@ const RadixChecklistForm = React.forwardRef<
     labels.map(() => false),
   );
 
+  // If items change (length / content), reset checked array
   React.useEffect(() => {
     setChecked(labels.map(() => false));
   }, [labels]);
@@ -866,15 +858,16 @@ const RadixChecklistForm = React.forwardRef<
       ref,
       style: {
         width: '100%',
-        maxWidth: '520px',
-        borderRadius: '20px',
-        padding: '20px 20px 18px',
-        background: `linear-gradient(135deg, ${colors.surface}, ${colors.surfaceSoft})`,
-        boxShadow: '0 18px 45px rgba(15, 23, 42, 0.18)',
-        border: `1px solid ${colors.borderSoft}`,
+        maxWidth: '480px',
+        borderRadius: '24px',
+        padding: '24px',
+        background: 'linear-gradient(140deg, #faf5ff, #f3e8ff)',
+        boxShadow:
+          '0 20px 45px rgba(108, 43, 217, 0.25), inset 0 2px 4px rgba(255, 255, 255, 0.8)',
+        border: '2px solid #e5d3ff',
         display: 'flex',
         flexDirection: 'column',
-        gap: '14px',
+        gap: '16px',
         boxSizing: 'border-box',
       },
       ...props,
@@ -913,7 +906,7 @@ const RadixChecklistForm = React.forwardRef<
     // Submit button
     React.createElement(
       'div',
-      { style: { display: 'flex', justifyContent: 'flex-end', marginTop: '4px' } },
+      { style: { display: 'flex', justifyContent: 'flex-end', marginTop: '8px' } },
       React.createElement(RadixButton, {
         label: submitLabel,
         variant: 'solid',
@@ -923,6 +916,7 @@ const RadixChecklistForm = React.forwardRef<
   );
 });
 RadixChecklistForm.displayName = 'RadixChecklistForm';
+
 
 export const radixComponentLibrary: ComponentLibrary = {
   name: 'radix',
@@ -934,7 +928,6 @@ export const radixComponentLibrary: ComponentLibrary = {
         content: 'content',
         htmlFor: 'htmlFor',
         variant: 'variant',
-        align: 'align',
       },
       eventMapping: {},
     },
@@ -944,7 +937,6 @@ export const radixComponentLibrary: ComponentLibrary = {
       propMapping: {
         label: 'label',
         variant: 'variant',
-        disabled: 'disabled',
       },
       eventMapping: {
         press: 'onPress',
@@ -1037,11 +1029,11 @@ export const radixComponentLibrary: ComponentLibrary = {
       propMapping: {
         title: 'title',
         description: 'description',
-        items: 'items',
+        items: 'items',           // items attribute → items prop (string)
         submitLabel: 'submitLabel',
       },
       eventMapping: {
-        submit: 'onSubmit',
+        submit: 'onSubmit',       // submit event → onSubmit prop
       },
     },
   ],
