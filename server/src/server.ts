@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { createUIResource } from '@mcp-ui/server';
+import { buyProductRemoteDomScript, checklistRemoteDomScript, feedbackFormScript, remoteDomScript } from './remote-dom-scrips';
 
 const app = express();
 const port = 8081;
@@ -13,6 +14,61 @@ app.use(
 app.use(express.json());
 
 type Variant = 'raw-basic' | 'raw-dark' | 'external' | 'remote-dom-basic' | 'remote-dom';
+
+const defaultRemoteDOMScript = `let isDarkMode = false;
+
+// Create the main container stack with centered alignment
+const stack = document.createElement('ui-stack');
+stack.setAttribute('direction', 'vertical');
+stack.setAttribute('spacing', '20');
+stack.setAttribute('align', 'center');
+
+// Create the title text
+const title = document.createElement('ui-text');
+title.setAttribute('content', 'Logo Toggle Demo');
+
+// Create a centered container for the logo
+const logoContainer = document.createElement('ui-stack');
+logoContainer.setAttribute('direction', 'vertical');
+logoContainer.setAttribute('spacing', '0');
+logoContainer.setAttribute('align', 'center');
+
+// Create the logo image (starts with light theme)
+const logo = document.createElement('ui-image');
+logo.setAttribute('src', 'https://block.github.io/goose/img/logo_light.png');
+logo.setAttribute('alt', 'Goose Logo');
+logo.setAttribute('width', '200');
+
+// Create the toggle button
+const toggleButton = document.createElement('ui-button');
+toggleButton.setAttribute('label', '🌙 Switch to Dark Mode');
+
+// Add the toggle functionality
+toggleButton.addEventListener('press', () => {
+  isDarkMode = !isDarkMode;
+  
+  if (isDarkMode) {
+    // Switch to dark mode
+    logo.setAttribute('src', 'https://block.github.io/goose/img/logo_dark.png');
+    logo.setAttribute('alt', 'Goose Logo (Dark Mode)');
+    toggleButton.setAttribute('label', '☀️ Switch to Light Mode');
+  } else {
+    // Switch to light mode
+    logo.setAttribute('src', 'https://block.github.io/goose/img/logo_light.png');
+    logo.setAttribute('alt', 'Goose Logo (Light Mode)');
+    toggleButton.setAttribute('label', '🌙 Switch to Dark Mode');
+  }
+  
+  console.log('Logo toggled to:', isDarkMode ? 'dark' : 'light', 'mode');
+});
+
+// Assemble the UI
+logoContainer.appendChild(logo);
+stack.appendChild(title);
+stack.appendChild(logoContainer);
+stack.appendChild(toggleButton);
+root.appendChild(stack);
+`;
 
 // ---------- rawHtml helpers ----------
 
@@ -201,52 +257,12 @@ function makeResource(variant: Variant) {
   }
 
   if (variant === 'remote-dom') {
-    // Remote DOM example (like the docs Example 5 but using your tags) 
-    const remoteDomScript = `
-      const card = document.createElement('ui-card');
-      card.setAttribute('title', 'Remote DOM + Custom Library');
-
-      const text1 = document.createElement('ui-text');
-      text1.setAttribute('value', 'This UI is rendered via Remote DOM using your React component library.');
-
-      const text2 = document.createElement('ui-text');
-      text2.setAttribute('value', 'Click the button below to trigger a tool action back in the host app.');
-      text2.setAttribute('variant', 'muted');
-
-      const button = document.createElement('ui-button');
-      button.setAttribute('label', 'Trigger Tool Action');
-      button.setAttribute('tone', 'primary');
-
-      button.addEventListener('press', () => {
-        window.parent.postMessage(
-          {
-            type: 'tool',
-            payload: {
-              toolName: 'uiInteraction',
-              params: {
-                action: 'button-click',
-                from: 'remote-dom-custom-library',
-                clickedAt: new Date().toISOString(),
-              }
-            }
-          },
-          '*'
-        );
-      });
-
-      card.appendChild(text1);
-      card.appendChild(text2);
-      card.appendChild(button);
-
-      root.appendChild(card);
-    `;
-
     return createUIResource({
-      uri: 'ui://demo/remote-dom-button',
+      uri: 'ui://demo/remote-dom-demo',
       content: {
         type: 'remoteDom',
-        script: remoteDomScript,
-        framework: 'react', // or 'webcomponents'
+        script: buyProductRemoteDomScript, // remoteDomScript, buyProductRemoteDomScript, feedbackFormScript, checklistRemoteDomScript
+        framework: 'react',
       },
       encoding: 'text',
       uiMetadata: {
@@ -296,6 +312,17 @@ app.get('/ui/:variant', (req, res) => {
 
     const uiResource = makeResource(variant);
     res.json(uiResource);
+  } catch (err: any) {
+    console.error(err);
+    res.status(500).json({ error: err?.message ?? 'Unknown error' });
+  }
+});
+
+app.post('/user/action', (req, res) => {
+  try {
+    const body = req.body;
+    console.log('User action recorded: ', body);
+    res.json({success: 'recorded your response..'});
   } catch (err: any) {
     console.error(err);
     res.status(500).json({ error: err?.message ?? 'Unknown error' });

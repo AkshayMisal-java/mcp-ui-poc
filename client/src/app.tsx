@@ -11,7 +11,9 @@ import type { Resource } from '@modelcontextprotocol/sdk/types';
 import {
   appComponentLibrary,
   appRemoteElements,
+  remoteElements,
 } from './remoteDomLibrary';
+import { radixComponentLibrary } from './radix';
 
 type UIResourceBlock = {
   type: 'resource';
@@ -62,19 +64,40 @@ const App: React.FC = () => {
         break;
       case 'intent':
         console.log('Intent:', result.payload.intent, result.payload.params);
+        postCall(result);
         break;
       case 'tool':
         console.log('Tool call:', result.payload.toolName, result.payload.params);
+        postCall(result);
         break;
       case 'prompt':
       case 'link':
+        postCall(result);
         console.log('Other action:', result);
         break;
     }
 
-    setLastAction(result);
+    if(result.type) {
+      setLastAction(result);
+    }
     return { status: 'handled' as const };
   };
+
+  const postCall = async (input: any) => {
+    const json = await apiCall("http://localhost:8081/user/action", input);
+  }
+
+  async function apiCall(resourceEndpoint: string, input: any) {
+  const res = await fetch(resourceEndpoint, { 
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(input)}
+  );
+  const json = await res.json();
+  return json;
+ }
 
   return (
     <div
@@ -175,10 +198,8 @@ const App: React.FC = () => {
                 resource={resource.resource}
                 onUIAction={handleUIAction}
                 remoteDomProps={{
-                  // library: basicComponentLibrary,
-                  // remoteElements: [remoteButtonDefinition, remoteTextDefinition],
-                  library: appComponentLibrary as any,
-                  remoteElements: appRemoteElements,
+                  library: radixComponentLibrary,
+                  remoteElements: remoteElements,
                 }}
               />
             )}
@@ -186,7 +207,7 @@ const App: React.FC = () => {
         </div>
 
         {/* Custom configuration */}
-        <div>
+        {/* <div>
           <h3>Custom config (HTML + Remote DOM)</h3>
           <p style={{ fontSize: 12, color: '#6b7280' }}>
             Demonstrates <code>supportedContentTypes</code>, <code>htmlProps</code> and custom
@@ -227,15 +248,13 @@ const App: React.FC = () => {
                   autoResizeIframe: { height: true },
                 }}
                 remoteDomProps={{
-                    // library: basicComponentLibrary,
-                    // remoteElements: [remoteButtonDefinition, remoteTextDefinition],
-                  library: appComponentLibrary as any,
-                  remoteElements: appRemoteElements,
+                  library: radixComponentLibrary,
+                  remoteElements: remoteElements,
                 }}
               />
             )}
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );
