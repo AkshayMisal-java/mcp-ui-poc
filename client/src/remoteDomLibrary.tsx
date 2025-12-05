@@ -449,13 +449,41 @@ export const remoteChecklistFormDefinition: RemoteElementConfiguration = {
   remoteEvents: ['submit'],
 };
 
+export const remoteCheckboxDefinition: RemoteElementConfiguration = {
+  tagName: 'ui-checkbox',
+  remoteAttributes: [ 'checked', 'label', 'disabled'],
+  remoteEvents: ['change'],
+};
+
+export const remoteSmallTextDefinition: RemoteElementConfiguration = {
+  tagName: 'ui-text-small',
+  remoteAttributes: [ 'content', 'htmlFor', 'align'],
+  remoteEvents: [],
+};
+
+export const remoteTextInputDefinition: RemoteElementConfiguration = {
+  tagName: 'ui-text-input',
+  remoteAttributes: [ 'value', 'placeholder', 'type', 'disabled'],
+  remoteEvents: ['change'],
+};
+
+export const remoteChartDefinition: RemoteElementConfiguration = {
+  tagName: 'ui-chart',
+  remoteAttributes: ['title', 'labels', 'values', 'showLegend'],
+  remoteEvents: [],
+};
+
 export  const remoteElements = [
+  remoteChartDefinition,
+  remoteSmallTextDefinition,
   remoteTextDefinition,
+  remoteTextInputDefinition,
   remoteButtonDefinition,
   remoteStackDefinition,
   remoteImageDefinition,
   remoteFeedbackFormDefinition,
-  remoteChecklistFormDefinition
+  remoteChecklistFormDefinition,
+  remoteCheckboxDefinition
 ];
 
 export const appRemoteElements = [

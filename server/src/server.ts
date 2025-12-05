@@ -3,7 +3,7 @@ import cors from 'cors';
 import { createUIResource } from '@mcp-ui/server';
 import { buyProductRemoteDomScript, checklistRemoteDomScript, feedbackFormScript, remoteDomScript } from './remote-dom-scrips';
 import { getRemoteDomByUri, upsertRemoteDom } from './remoteDomRepo';
-import { saveUiAction } from './uiActionsRepo';
+import { listUiActions, saveUiAction } from './uiActionsRepo';
 
 const app = express();
 const port = 8081;
@@ -414,6 +414,28 @@ app.post('/user/action', async (req, res) => {
     res.json(saved);
   } catch (err: any) {
     console.error('Error saving UI action:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// Supports query params: type, search, limit, offset
+app.get('/ui-actions', async (req, res) => {
+  try {
+    const type = typeof req.query.type === 'string' ? req.query.type : undefined;
+    const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    const offset = req.query.offset ? Number(req.query.offset) : undefined;
+
+    const actions = await listUiActions({
+      type,
+      search,
+      limit,
+      offset,
+    });
+
+    res.json(actions);
+  } catch (err: any) {
+    console.error('Error listing UI actions:', err);
     res.status(500).json({ error: 'internal_error' });
   }
 });

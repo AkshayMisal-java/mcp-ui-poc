@@ -24,6 +24,45 @@ const colors = {
 };
 
 // Radix UI Text component using Label primitive
+const RadixSmallText = React.forwardRef<
+  HTMLLabelElement,
+  {
+    content?: string;
+    children?: React.ReactNode;
+    htmlFor?: string;
+    align?: 'left' | 'center' | 'right';
+    [key: string]: any;
+  }
+>(({ content, children, htmlFor, align = 'left', ...props }, ref) => {
+  const getStyles = () => {
+    const base: React.CSSProperties = {
+      fontFamily,
+      display: 'block',
+      marginBottom: '4px',
+      textAlign: align,
+      textRendering: 'geometricPrecision',
+       fontSize: '12px',
+        fontWeight: 500,
+        lineHeight: 1.4,
+        color: colors.textMuted,
+    };
+    return base;
+  };
+
+  return React.createElement(
+    Label.Root,
+    {
+      ref,
+      htmlFor,
+      style: getStyles(),
+      ...props,
+    },
+    content || children,
+  );
+});
+RadixSmallText.displayName = 'RadixSmallText';
+
+// Radix UI Text component using Label primitive
 const RadixText = React.forwardRef<
   HTMLLabelElement,
   {
@@ -924,6 +963,250 @@ const RadixChecklistForm = React.forwardRef<
 });
 RadixChecklistForm.displayName = 'RadixChecklistForm';
 
+// Simple bar chart component for Remote DOM
+const RadixChart = React.forwardRef<
+  HTMLDivElement,
+  {
+    title?: string;
+    labels?: string;   // JSON string or comma-separated
+    values?: string;   // JSON string or comma-separated numbers
+    showLegend?: string | boolean;
+    [key: string]: any;
+  }
+>(({ title = 'Chart', labels, values, showLegend = 'false', ...props }, ref) => {
+  // Parse labels
+  const parsedLabels: string[] = React.useMemo(() => {
+    if (!labels) return [];
+
+    try {
+      const parsed = JSON.parse(labels);
+      if (Array.isArray(parsed)) return parsed.map(String);
+    } catch {
+      // fallback: CSV
+    }
+
+    return String(labels)
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }, [labels]);
+
+  // Parse values
+  const parsedValues: number[] = React.useMemo(() => {
+    if (!values) return [];
+
+    try {
+      const parsed = JSON.parse(values);
+      if (Array.isArray(parsed)) return parsed.map((v) => Number(v) || 0);
+    } catch {
+      // fallback: CSV
+    }
+
+    return String(values)
+      .split(',')
+      .map((s) => Number(s.trim()) || 0);
+  }, [values]);
+
+  const maxValue = React.useMemo(
+    () => parsedValues.reduce((m, v) => (v > m ? v : m), 0) || 1,
+    [parsedValues],
+  );
+
+  const legendVisible =
+    typeof showLegend === 'boolean'
+      ? showLegend
+      : String(showLegend).toLowerCase() === 'true';
+
+  // Total drawing height for bars
+  const BAR_AREA_HEIGHT = 140;
+
+  return React.createElement(
+    'div',
+    {
+      ref,
+      style: {
+        width: '100%',
+        maxWidth: '520px',
+        borderRadius: '20px',
+        padding: '18px 18px 16px',
+        background: `linear-gradient(135deg, ${colors.surface}, ${colors.surfaceSoft})`,
+        boxShadow: '0 18px 45px rgba(15, 23, 42, 0.18)',
+        border: `1px solid ${colors.borderSoft}`,
+        boxSizing: 'border-box',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px',
+      },
+      ...props,
+    },
+    // Header
+    React.createElement(
+      'div',
+      { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' } },
+      React.createElement(
+        'div',
+        null,
+        React.createElement('div', {
+          style: {
+            fontFamily,
+            fontSize: '14px',
+            fontWeight: 600,
+            color: colors.text,
+          },
+          children: title,
+        }),
+        legendVisible &&
+          parsedLabels.length > 0 &&
+          React.createElement('div', {
+            style: {
+              marginTop: 4,
+              fontFamily,
+              fontSize: '11px',
+              color: colors.textMuted,
+            },
+            children: `${parsedLabels.length} data points`,
+          }),
+      ),
+      maxValue > 0 &&
+        React.createElement('div', {
+          style: {
+            fontFamily,
+            fontSize: '11px',
+            color: colors.textMuted,
+            padding: '2px 8px',
+            borderRadius: 999,
+            border: `1px solid ${colors.borderSubtle}`,
+            backgroundColor: colors.surfaceSoft,
+          },
+          children: `Max: ${maxValue}`,
+        }),
+    ),
+
+    // Chart area
+    React.createElement(
+      'div',
+      {
+        style: {
+          position: 'relative',
+          borderRadius: 14,
+          padding: '16px 12px 12px',
+          background: `radial-gradient(circle at top, ${colors.surfaceSoft}, ${colors.surface})`,
+          border: `1px solid ${colors.borderSubtle}`,
+          // Give a bit more total height and DON'T clip children
+          height: BAR_AREA_HEIGHT + 100,
+          boxSizing: 'border-box',
+        },
+      },
+      // faint grid line
+      React.createElement('div', {
+        style: {
+          position: 'absolute',
+          left: 12,
+          right: 12,
+          top: '40%',
+          height: 1,
+          background: 'linear-gradient(90deg, transparent, rgba(148,163,184,0.5), transparent)',
+        },
+      }),
+      // bars + labels
+      React.createElement('div', {
+        style: {
+          display: 'flex',
+          alignItems: 'flex-end',
+          gap: 8,
+          height: '200px', // bars sit inside this area
+        },
+        children:
+          parsedValues.length === 0
+            ? React.createElement('div', {
+                style: {
+                  fontFamily,
+                  fontSize: '12px',
+                  color: colors.textMuted,
+                  margin: '0 auto',
+                },
+                children: 'No data to display',
+              })
+            : parsedValues.map((v, index) => {
+                const label = parsedLabels[index] ?? `#${index + 1}`;
+                // Keep a small top margin so bars never touch the top
+                const maxBarHeight = BAR_AREA_HEIGHT - 12;
+                const barHeight = Math.max(6, (v / maxValue) * maxBarHeight);
+
+                return React.createElement(
+                  'div',
+                  {
+                    key: index,
+                    style: {
+                      flex: 1,
+                      minWidth: 0,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 6,
+                    },
+                  },
+                  // bar wrapper
+                  React.createElement(
+                    'div',
+                    {
+                      style: {
+                        width: '100%',
+                        height: BAR_AREA_HEIGHT,
+                        minWidth: 8,
+                        borderRadius: 999,
+                        backgroundColor: colors.surfaceSoft,
+                        border: `1px solid ${colors.borderSubtle}`,
+                        display: 'flex',
+                        alignItems: 'flex-end',
+                        justifyContent: 'center',
+                        padding: 2,
+                        boxSizing: 'border-box',
+                      },
+                    },
+                    React.createElement('div', {
+                      style: {
+                        width: '100%',
+                        borderRadius: 999,
+                        height: `${barHeight}px`,
+                        background: `linear-gradient(180deg, ${colors.primaryStrong}, ${colors.primary})`,
+                        boxShadow: '0 8px 20px rgba(124, 58, 237, 0.45)',
+                        transition: 'height 0.25s ease-out',
+                      },
+                    }),
+                  ),
+                  // value
+                  React.createElement('div', {
+                    style: {
+                      fontFamily,
+                      fontSize: '11px',
+                      color: colors.textMuted,
+                    },
+                    children: v,
+                  }),
+                  // label
+                  React.createElement('div', {
+                    style: {
+                      fontFamily,
+                      fontSize: '11px',
+                      color: colors.text,
+                      whiteSpace: 'nowrap',
+                      textOverflow: 'ellipsis',
+                      overflow: 'hidden',
+                      maxWidth: 80,
+                    },
+                    title: label,
+                    children: label,
+                  }),
+                );
+              }),
+      }),
+    ),
+  );
+});
+RadixChart.displayName = 'RadixChart';
+
+
 export const radixComponentLibrary: ComponentLibrary = {
   name: 'radix',
   elements: [
@@ -934,6 +1217,16 @@ export const radixComponentLibrary: ComponentLibrary = {
         content: 'content',
         htmlFor: 'htmlFor',
         variant: 'variant',
+        align: 'align',
+      },
+      eventMapping: {},
+    },
+    {
+      tagName: 'ui-text-small',
+      component: RadixSmallText,
+      propMapping: {
+        content: 'content',
+        htmlFor: 'htmlFor',
         align: 'align',
       },
       eventMapping: {},
@@ -1043,6 +1336,17 @@ export const radixComponentLibrary: ComponentLibrary = {
       eventMapping: {
         submit: 'onSubmit',
       },
+    },
+    {
+      tagName: 'ui-chart',
+      component: RadixChart,
+      propMapping: {
+        title: 'title',
+        labels: 'labels',
+        values: 'values',
+        showLegend: 'showLegend',
+      },
+      eventMapping: {},
     },
   ],
 };

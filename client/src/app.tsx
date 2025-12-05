@@ -92,7 +92,7 @@ const App: React.FC = () => {
         resourceUri: input?.uri ?? resource?.resource?.uri,
         actionType: input.type,
         toolName: (input as any).payload?.toolName,
-        payload: input.payload || {},
+        payload: input.payload?.params || input.payload || {},
       }),
     });
     const json = await res.json();
