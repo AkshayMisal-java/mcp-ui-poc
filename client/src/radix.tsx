@@ -4,8 +4,36 @@ import * as React from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Separator from '@radix-ui/react-separator';
 import * as Label from '@radix-ui/react-label';
-import type { ComponentLibrary } from '@mcp-ui/client';
+import { remoteButtonDefinition, RemoteElementConfiguration, remoteImageDefinition, remoteStackDefinition, remoteTextDefinition, type ComponentLibrary } from '@mcp-ui/client';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  RadialLinearScale,
+  ArcElement,
+  Filler,
+  Tooltip,
+  Legend,
+  Title as ChartTitle,
+} from 'chart.js';
+import { Bar, Line, Doughnut, Pie, Radar } from 'react-chartjs-2';
 
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  RadialLinearScale,
+  ArcElement,
+  Filler,
+  Tooltip,
+  Legend,
+  ChartTitle,
+);
 // Shared design tokens
 const fontFamily =
   '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
@@ -129,6 +157,7 @@ const RadixButton = React.forwardRef<
     [key: string]: any;
   }
 >(({ label, onPress, onClick, children, variant = 'solid', disabled = false, ...props }, ref) => {
+  console.log('Button input: ', label, variant, props);
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     if (disabled) {
       event.preventDefault();
@@ -247,6 +276,7 @@ const RadixStack = React.forwardRef<
     children?: React.ReactNode;
     align?: string;
     justify?: string;
+    minheight?: string;
     [key: string]: any;
   }
 >(
@@ -257,6 +287,7 @@ const RadixStack = React.forwardRef<
       align = 'stretch',
       justify = 'flex-start',
       children,
+      minheight,
       ...props
     },
     ref,
@@ -272,6 +303,10 @@ const RadixStack = React.forwardRef<
       justifyContent: justify,
       boxSizing: 'border-box',
     };
+
+    if(minheight){
+      style.minHeight = `${minheight}px`;
+    }
 
     if (!isInline) {
       Object.assign(style, {
@@ -540,7 +575,7 @@ const RadixTextInput = React.forwardRef<
     placeholder?: string;
     type?: string;
     disabled?: boolean;
-    onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    onChange?: (value: string | React.ChangeEvent<HTMLInputElement>) => void;
     [key: string]: any;
   }
 >((props, ref) => {
@@ -550,7 +585,7 @@ const RadixTextInput = React.forwardRef<
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (onChange) {
-      onChange(e);
+      onChange(e.target.value);
     }
   };
 
@@ -601,17 +636,18 @@ const RadixCheckbox = React.forwardRef<
     checked?: boolean;
     label?: string;
     disabled?: boolean;
-    onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    onChange?: (value: boolean | React.ChangeEvent<HTMLInputElement>) => void;
     [key: string]: any;
   }
 >((props, ref) => {
   const { checked, label, disabled, onChange, ...rest } = props;
 
   const { children, dangerouslySetInnerHTML, ...safeRest } = rest;
-
+  
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('inside checkbox handle change', e.target.checked);
     if (onChange) {
-      onChange(e);
+      onChange(e.target.checked);
     }
   };
 
@@ -677,7 +713,7 @@ const RadixFeedbackForm = React.forwardRef<
   {
     title?: string;
     description?: string;
-    submitLabel?: string;
+    submitlabel?: string;
     onSubmit?: (payload: {
       name: string;
       email: string;
@@ -686,8 +722,7 @@ const RadixFeedbackForm = React.forwardRef<
     }) => void;
     [key: string]: any;
   }
->(({ title, description, submitLabel = 'Submit feedback', onSubmit, ...props }, ref) => {
-  console.log('submit label: ',submitLabel);
+>(({ title, description, submitlabel = 'Submit feedback', onSubmit, ...props }, ref) => {
   const [name, setName] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [feedback, setFeedback] = React.useState('');
@@ -825,7 +860,7 @@ const RadixFeedbackForm = React.forwardRef<
       'div',
       { style: { display: 'flex', justifyContent: 'flex-end', marginTop: '4px' } },
       React.createElement(RadixButton, {
-        label: submitLabel,
+        label: submitlabel,
         variant: 'solid',
         onPress: handleSubmit,
         disabled: !feedback.trim(),
@@ -835,20 +870,21 @@ const RadixFeedbackForm = React.forwardRef<
 });
 RadixFeedbackForm.displayName = 'RadixFeedbackForm';
 
+
 const RadixChecklistForm = React.forwardRef<
   HTMLDivElement,
   {
     title?: string;
     description?: string;
     items?: string; // JSON string or comma-separated list
-    submitLabel?: string;
+    submitlabel?: string;
     onSubmit?: (payload: {
       items: { label: string; checked: boolean }[];
     }) => void;
     [key: string]: any;
   }
->(({ title, description, items, submitLabel = 'Save selection', onSubmit, ...props }, ref) => {
-  console.log('submit label: ',submitLabel);
+>(({ title, description, items, submitlabel = 'Save selection', onSubmit, ...props }, ref) => {
+  console.log('inside checklist form');
   const labels = React.useMemo(() => {
     if (!items) return [] as string[];
 
@@ -954,7 +990,7 @@ const RadixChecklistForm = React.forwardRef<
       'div',
       { style: { display: 'flex', justifyContent: 'flex-end', marginTop: '4px' } },
       React.createElement(RadixButton, {
-        label: submitLabel,
+        label: submitlabel,
         variant: 'solid',
         onPress: handleSubmit,
       }),
@@ -963,17 +999,20 @@ const RadixChecklistForm = React.forwardRef<
 });
 RadixChecklistForm.displayName = 'RadixChecklistForm';
 
-// Simple bar chart component for Remote DOM
+
+// Chart.js chart component for Remote DOM
 const RadixChart = React.forwardRef<
   HTMLDivElement,
   {
     title?: string;
     labels?: string;   // JSON string or comma-separated
     values?: string;   // JSON string or comma-separated numbers
-    showLegend?: string | boolean;
+    showlegend?: string | boolean;
+    charttype?: string; // "bar" | "line" | "pie" | "doughnut" | "radar"
     [key: string]: any;
   }
->(({ title = 'Chart', labels, values, showLegend = 'false', ...props }, ref) => {
+>(({ title = 'Chart', labels, values, showlegend = 'false', charttype = 'bar', ...props }, ref) => {
+  console.log('Chart input: ', title, showlegend, charttype, props);
   // Parse labels
   const parsedLabels: string[] = React.useMemo(() => {
     if (!labels) return [];
@@ -1007,18 +1046,119 @@ const RadixChart = React.forwardRef<
       .map((s) => Number(s.trim()) || 0);
   }, [values]);
 
-  const maxValue = React.useMemo(
-    () => parsedValues.reduce((m, v) => (v > m ? v : m), 0) || 1,
-    [parsedValues],
+  const normalizedType = (charttype || 'bar').toLowerCase();
+  const legendVisible =
+    typeof showlegend === 'boolean'
+      ? showlegend
+      : String(showlegend).toLowerCase() === 'true';
+
+  const data = React.useMemo(
+    () => ({
+      labels: parsedLabels,
+      datasets: [
+        {
+          label: title,
+          data: parsedValues,
+          borderRadius: normalizedType === 'bar' ? 12 : 0,
+          borderSkipped: false,
+          backgroundColor:
+            normalizedType === 'pie' || normalizedType === 'doughnut'
+              ? [
+                  'rgba(124, 58, 237, 0.85)',
+                  'rgba(59, 130, 246, 0.85)',
+                  'rgba(34, 197, 94, 0.85)',
+                  'rgba(249, 115, 22, 0.85)',
+                  'rgba(244, 63, 94, 0.85)',
+                  'rgba(14, 165, 233, 0.85)',
+                ]
+              : 'rgba(124, 58, 237, 0.85)',
+          borderColor:
+            normalizedType === 'line' || normalizedType === 'radar'
+              ? 'rgba(129, 140, 248, 1)'
+              : undefined,
+          pointBackgroundColor:
+            normalizedType === 'line' || normalizedType === 'radar'
+              ? 'rgba(129, 140, 248, 1)'
+              : undefined,
+          fill: normalizedType === 'line' || normalizedType === 'radar',
+          maxBarThickness: 40,
+        },
+      ],
+    }),
+    [parsedLabels, parsedValues, title, normalizedType],
   );
 
-  const legendVisible =
-    typeof showLegend === 'boolean'
-      ? showLegend
-      : String(showLegend).toLowerCase() === 'true';
+  const options = React.useMemo(() => {
+    const base = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: legendVisible,
+          labels: {
+            color: colors.textMuted,
+            font: { family: fontFamily, size: 11 },
+          },
+        },
+        title: { display: false },
+        tooltip: {
+          backgroundColor: '#020617',
+          borderColor: 'rgba(148,163,184,0.6)',
+          borderWidth: 1,
+          titleFont: { family: fontFamily, size: 12 },
+          bodyFont: { family: fontFamily, size: 11 },
+        },
+      },
+    } as any;
 
-  // Total drawing height for bars
-  const BAR_AREA_HEIGHT = 140;
+    if (normalizedType === 'bar' || normalizedType === 'line') {
+      base.scales = {
+        x: {
+          grid: { display: false },
+          ticks: {
+            color: colors.textMuted,
+            font: { family: fontFamily, size: 11 },
+          },
+        },
+        y: {
+          grid: { color: 'rgba(148,163,184,0.25)' },
+          ticks: {
+            color: colors.textMuted,
+            font: { family: fontFamily, size: 11 },
+            precision: 0,
+          },
+        },
+      };
+    }
+
+    if (normalizedType === 'radar') {
+      base.scales = {
+        r: {
+          angleLines: { color: 'rgba(148,163,184,0.35)' },
+          grid: { color: 'rgba(148,163,184,0.25)' },
+          pointLabels: {
+            color: colors.textMuted,
+            font: { family: fontFamily, size: 11 },
+          },
+          ticks: {
+            color: colors.textMuted,
+            font: { family: fontFamily, size: 10 },
+            backdropColor: 'transparent',
+          },
+        },
+      };
+    }
+
+    // pie/doughnut use default radial options
+
+    return base;
+  }, [legendVisible, normalizedType]);
+
+  let ChartComponent: React.ComponentType<any> = Bar;
+  if (normalizedType === 'line') ChartComponent = Line;
+  else if (normalizedType === 'pie') ChartComponent = Pie;
+  else if (normalizedType === 'doughnut') ChartComponent = Doughnut;
+  else if (normalizedType === 'radar') ChartComponent = Radar;
 
   return React.createElement(
     'div',
@@ -1035,176 +1175,83 @@ const RadixChart = React.forwardRef<
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
-        gap: '12px',
+        gap: '8px',
       },
       ...props,
     },
-    // Header
-    React.createElement(
-      'div',
-      { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' } },
-      React.createElement(
-        'div',
-        null,
-        React.createElement('div', {
-          style: {
-            fontFamily,
-            fontSize: '14px',
-            fontWeight: 600,
-            color: colors.text,
-          },
-          children: title,
-        }),
-        legendVisible &&
-          parsedLabels.length > 0 &&
-          React.createElement('div', {
-            style: {
-              marginTop: 4,
-              fontFamily,
-              fontSize: '11px',
-              color: colors.textMuted,
-            },
-            children: `${parsedLabels.length} data points`,
-          }),
-      ),
-      maxValue > 0 &&
-        React.createElement('div', {
-          style: {
-            fontFamily,
-            fontSize: '11px',
-            color: colors.textMuted,
-            padding: '2px 8px',
-            borderRadius: 999,
-            border: `1px solid ${colors.borderSubtle}`,
-            backgroundColor: colors.surfaceSoft,
-          },
-          children: `Max: ${maxValue}`,
-        }),
-    ),
-
-    // Chart area
-    React.createElement(
-      'div',
-      {
-        style: {
-          position: 'relative',
-          borderRadius: 14,
-          padding: '16px 12px 12px',
-          background: `radial-gradient(circle at top, ${colors.surfaceSoft}, ${colors.surface})`,
-          border: `1px solid ${colors.borderSubtle}`,
-          // Give a bit more total height and DON'T clip children
-          height: BAR_AREA_HEIGHT + 100,
-          boxSizing: 'border-box',
-        },
+    React.createElement('div', {
+      style: {
+        fontFamily,
+        fontSize: '14px',
+        fontWeight: 600,
+        color: colors.text,
       },
-      // faint grid line
-      React.createElement('div', {
-        style: {
-          position: 'absolute',
-          left: 12,
-          right: 12,
-          top: '40%',
-          height: 1,
-          background: 'linear-gradient(90deg, transparent, rgba(148,163,184,0.5), transparent)',
-        },
+      children: title,
+    }),
+    React.createElement('div', {
+      style: {
+        marginTop: 4,
+        borderRadius: 14,
+        padding: '10px 10px 8px',
+        background: `radial-gradient(circle at top, ${colors.surfaceSoft}, ${colors.surface})`,
+        border: `1px solid ${colors.borderSubtle}`,
+        height: 240,
+      },
+      children: React.createElement(ChartComponent, {
+        data,
+        options,
       }),
-      // bars + labels
-      React.createElement('div', {
-        style: {
-          display: 'flex',
-          alignItems: 'flex-end',
-          gap: 8,
-          height: '200px', // bars sit inside this area
-        },
-        children:
-          parsedValues.length === 0
-            ? React.createElement('div', {
-                style: {
-                  fontFamily,
-                  fontSize: '12px',
-                  color: colors.textMuted,
-                  margin: '0 auto',
-                },
-                children: 'No data to display',
-              })
-            : parsedValues.map((v, index) => {
-                const label = parsedLabels[index] ?? `#${index + 1}`;
-                // Keep a small top margin so bars never touch the top
-                const maxBarHeight = BAR_AREA_HEIGHT - 12;
-                const barHeight = Math.max(6, (v / maxValue) * maxBarHeight);
-
-                return React.createElement(
-                  'div',
-                  {
-                    key: index,
-                    style: {
-                      flex: 1,
-                      minWidth: 0,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: 6,
-                    },
-                  },
-                  // bar wrapper
-                  React.createElement(
-                    'div',
-                    {
-                      style: {
-                        width: '100%',
-                        height: BAR_AREA_HEIGHT,
-                        minWidth: 8,
-                        borderRadius: 999,
-                        backgroundColor: colors.surfaceSoft,
-                        border: `1px solid ${colors.borderSubtle}`,
-                        display: 'flex',
-                        alignItems: 'flex-end',
-                        justifyContent: 'center',
-                        padding: 2,
-                        boxSizing: 'border-box',
-                      },
-                    },
-                    React.createElement('div', {
-                      style: {
-                        width: '100%',
-                        borderRadius: 999,
-                        height: `${barHeight}px`,
-                        background: `linear-gradient(180deg, ${colors.primaryStrong}, ${colors.primary})`,
-                        boxShadow: '0 8px 20px rgba(124, 58, 237, 0.45)',
-                        transition: 'height 0.25s ease-out',
-                      },
-                    }),
-                  ),
-                  // value
-                  React.createElement('div', {
-                    style: {
-                      fontFamily,
-                      fontSize: '11px',
-                      color: colors.textMuted,
-                    },
-                    children: v,
-                  }),
-                  // label
-                  React.createElement('div', {
-                    style: {
-                      fontFamily,
-                      fontSize: '11px',
-                      color: colors.text,
-                      whiteSpace: 'nowrap',
-                      textOverflow: 'ellipsis',
-                      overflow: 'hidden',
-                      maxWidth: 80,
-                    },
-                    title: label,
-                    children: label,
-                  }),
-                );
-              }),
-      }),
-    ),
+    }),
   );
 });
 RadixChart.displayName = 'RadixChart';
+
+// Radix Badge / Pill component
+const RadixBadge = React.forwardRef<
+  HTMLSpanElement,
+  {
+    label?: string;
+    tone?: 'success' | 'warning' | 'info';
+    [key: string]: any;
+  }
+>(({ label, tone = 'info', ...props }, ref) => {
+  let bg = 'rgba(59,130,246,0.14)';
+  let border = 'rgba(59,130,246,0.4)';
+  let color = '#1d4ed8';
+
+  if (tone === 'success') {
+    bg = 'rgba(22,163,74,0.10)';
+    border = 'rgba(22,163,74,0.45)';
+    color = '#15803d';
+  } else if (tone === 'warning') {
+    bg = 'rgba(245,158,11,0.10)';
+    border = 'rgba(245,158,11,0.45)';
+    color = '#b45309';
+  }
+
+  return React.createElement('span', {
+    ref,
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 999,
+      padding: '3px 10px',
+      fontFamily,
+      fontSize: '11px',
+      fontWeight: 600,
+      letterSpacing: '0.06em',
+      textTransform: 'uppercase',
+      backgroundColor: bg,
+      border: `1px solid ${border}`,
+      color,
+      whiteSpace: 'nowrap',
+    },
+    ...props,
+    children: label || props.children || 'Badge',
+  });
+});
+RadixBadge.displayName = 'RadixBadge';
 
 
 export const radixComponentLibrary: ComponentLibrary = {
@@ -1251,6 +1298,7 @@ export const radixComponentLibrary: ComponentLibrary = {
         spacing: 'spacing',
         align: 'align',
         justify: 'justify',
+        minheight: 'minheight'
       },
       eventMapping: {},
     },
@@ -1318,7 +1366,7 @@ export const radixComponentLibrary: ComponentLibrary = {
       propMapping: {
         title: 'title',
         description: 'description',
-        submitLabel: 'submitLabel',
+        submitlabel: 'submitlabel',
       },
       eventMapping: {
         submit: 'onSubmit',
@@ -1331,7 +1379,7 @@ export const radixComponentLibrary: ComponentLibrary = {
         title: 'title',
         description: 'description',
         items: 'items',
-        submitLabel: 'submitLabel',
+        submitlabel: 'submitlabel',
       },
       eventMapping: {
         submit: 'onSubmit',
@@ -1344,9 +1392,92 @@ export const radixComponentLibrary: ComponentLibrary = {
         title: 'title',
         labels: 'labels',
         values: 'values',
-        showLegend: 'showLegend',
+        showlegend: 'showlegend',
+        charttype: 'charttype',
       },
       eventMapping: {},
     },
+    {
+      tagName: 'ui-badge',
+      component: RadixBadge,
+      propMapping: {
+        label: 'label',
+        tone: 'tone',
+      },
+      eventMapping: {},
+    },
+
   ],
 };
+
+
+// remote element definitions
+export const remoteFeedbackFormDefinition: RemoteElementConfiguration = {
+  tagName: 'ui-feedback-form',
+  // Attributes that Remote DOM is allowed to set via setAttribute(...)
+  remoteAttributes: ['title', 'description', 'submitlabel'],
+  // Events that Remote DOM can listen to via addEventListener(...)
+  remoteEvents: ['submit'],
+};
+
+export const remoteChecklistFormDefinition: RemoteElementConfiguration = {
+  tagName: 'ui-checklist-form',
+  remoteAttributes: ['title', 'description', 'items', 'submitlabel'],
+  remoteEvents: ['submit'],
+};
+
+export const remoteCheckboxDefinition: RemoteElementConfiguration = {
+  tagName: 'ui-checkbox',
+  remoteAttributes: [ 'checked', 'label', 'disabled'],
+  remoteEvents: ['change'],
+};
+
+export const remoteSmallTextDefinition: RemoteElementConfiguration = {
+  tagName: 'ui-text-small',
+  remoteAttributes: [ 'content', 'htmlFor', 'align'],
+  remoteEvents: [],
+};
+
+export const remoteTextInputDefinition: RemoteElementConfiguration = {
+  tagName: 'ui-text-input',
+  remoteAttributes: [ 'value', 'placeholder', 'type', 'disabled'],
+  remoteEvents: ['change'],
+};
+
+export const remoteChartDefinition: RemoteElementConfiguration = {
+  tagName: 'ui-chart',
+  remoteAttributes: ['title', 'labels', 'values', 'showlegend', 'charttype'],
+  remoteEvents: [],
+};
+
+export const remoteBadgeDefinition: RemoteElementConfiguration = {
+  tagName: 'ui-badge',
+  remoteAttributes: ['label', 'tone'],
+  remoteEvents: [],
+};
+
+export const remoteCustomButtonDefinition: RemoteElementConfiguration = {
+  tagName: 'ui-button',
+  remoteAttributes: ['label', 'variant', 'disabled'],
+  remoteEvents: ['press'],
+};
+
+export const remoteCustomStackDefinition: RemoteElementConfiguration = {
+  tagName: 'ui-stack',
+  remoteAttributes: ['direction', 'spacing', 'align', 'justify', 'minheight'],
+  remoteEvents: ['']
+};
+
+export  const remoteElements = [
+  remoteChartDefinition,
+  remoteSmallTextDefinition,
+  remoteTextDefinition,
+  remoteTextInputDefinition,
+  remoteCustomButtonDefinition,
+  remoteCustomStackDefinition,
+  remoteImageDefinition,
+  remoteFeedbackFormDefinition,
+  remoteChecklistFormDefinition,
+  remoteCheckboxDefinition,
+  remoteBadgeDefinition
+];

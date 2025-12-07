@@ -44,3 +44,10 @@ export async function getRemoteDomByUri(uri: string): Promise<RemoteDomResource 
   );
   return result.rows[0] ?? null;
 }
+
+export async function getRemoteDoms(): Promise<RemoteDomResource[] | null> {
+  const result = await query<RemoteDomResource>(
+    `SELECT * FROM remote_dom_resources`
+  );
+  return result.rows ?? null;
+}

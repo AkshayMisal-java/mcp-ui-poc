@@ -1,9 +1,5 @@
 import {
   UIResourceRenderer,
-  remoteTextDefinition,
-  remoteButtonDefinition,
-  remoteStackDefinition,
-  remoteImageDefinition,
 } from '@mcp-ui/client';
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { radixComponentLibrary } from '../radix';
@@ -12,72 +8,89 @@ import { remoteElements } from '../radix';
 
 const SERVER_BASE = 'http://localhost:8081';
 
-const remoteDomScript1 = `
-      const stack = document.createElement('ui-stack');
-      stack.setAttribute('direction', 'vertical');
-      stack.setAttribute('spacing', '20');
-      stack.setAttribute('align', 'center');
+type RemoteDomScriptMeta = {
+  uri: string;
+  name?: string;
+  description?: string;
+};
 
-      const text1 = document.createElement('ui-text');
-      text1.setAttribute('content', 'Do you want to proceed?');
-
-      const button = document.createElement('ui-button');
-      button.setAttribute('label', 'Buy');
-      button.setAttribute('variant', 'soft');
-
-      button.addEventListener('press', () => {
-        window.parent.postMessage(
-          {
-            type: 'tool',
-            payload: {
-              toolName: 'uiInteraction',
-              params: {
-                action: 'buy-button-click',
-                from: 'remote-dom-custom-library',
-                clickedAt: new Date().toISOString(),
-              }
-            }
-          },
-          '*'
-        );
-      });
-
-      stack.appendChild(text1);
-      stack.appendChild(button);
-      root.appendChild(stack);
-    `;
-
-function CreateDom() {
+function Configurator() {
   const [scriptContent, setScriptContent] = useState('');
   const [inputValue, setInputValue] = useState('');
   const [saveResponseValue, setSaveResponseValue] = useState('');
   const [isPending, startTransition] = useTransition();
-  const [loading, setLoading] = useState(false);
+
+  const [scripts, setScripts] = useState<RemoteDomScriptMeta[]>([]);
+  const [selectedUri, setSelectedUri] = useState<string>('');
+  const [listLoading, setListLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // loading for the currently selected script
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load script from server on mount
-  useEffect(() => {
+  // --- helper to load a single script by uri ---
+  async function loadScript(uri: string) {
+    if (!uri) return;
     setLoading(true);
     setError(null);
-    fetch(`${SERVER_BASE}/remote-dom/script`)
-      .then((res) => res.json())
-      .then((json) => {
-        console.log('server response: ', json);
-        if (json && json.script) {
-          setScriptContent(json.script);
-          setInputValue(json.script);
+    setSaveResponseValue('');
+    try {
+      const res = await fetch(`${SERVER_BASE}/remote-dom/script?uri=${encodeURIComponent(uri)}`);
+      const json = await res.json();
+      console.log('loadScript response:', json);
+      if (json && json.script) {
+        setScriptContent(json.script);
+        setInputValue(json.script);
+      } else {
+        setError(json.error ?? 'Failed to load script');
+        setScriptContent('');
+        setInputValue('');
+      }
+    } catch (err: any) {
+      setError(err?.message ?? 'Fetch error');
+      setScriptContent('');
+      setInputValue('');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // 1) Load list of scripts on mount
+  useEffect(() => {
+    const fetchList = async () => {
+      setListLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`${SERVER_BASE}/remote-dom/scripts`);
+        const json = await res.json();
+        console.log('scripts list response: ', json);
+
+        const items: RemoteDomScriptMeta[] = Array.isArray(json)
+          ? json
+          : Array.isArray(json.scripts)
+          ? json.scripts
+          : [];
+
+        setScripts(items);
+
+        if (items.length > 0) {
+          const initialUri = items[0].uri;
+          setSelectedUri(initialUri);
+          await loadScript(initialUri);
         } else {
-          setError(json.error ?? 'Failed to load script');
+          setError('No Remote DOM scripts found.');
         }
-      })
-      .catch((err) => {
-        setError(err.message ?? 'Fetch error');
-      })
-      .finally(() => setLoading(false));
+      } catch (err: any) {
+        setError(err?.message ?? 'Failed to load scripts list');
+      } finally {
+        setListLoading(false);
+      }
+    };
+
+    fetchList();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Debounce the script content updates for preview
+  // 2) Debounce the script content updates for preview
   useEffect(() => {
     const handler = setTimeout(() => {
       startTransition(() => {
@@ -89,7 +102,7 @@ function CreateDom() {
     return () => {
       clearTimeout(handler);
     };
-  }, [inputValue]);
+  }, [inputValue, startTransition]);
 
   const mockResourceReact = useMemo(
     () => ({
@@ -100,11 +113,19 @@ function CreateDom() {
   );
 
   const postCall = async () => {
+    if (!selectedUri) {
+      setSaveResponseValue('Error: Please select a script resource to save.');
+      return;
+    }
+
     try {
       setSaving(true);
       setSaveResponseValue('');
-      const json = await apiCall(`${SERVER_BASE}/remote-dom`, { script: inputValue });
-      setSaveResponseValue(json.success ?? 'Saved!');
+      const json = await apiCall(`${SERVER_BASE}/remote-dom/script`, {
+        uri: selectedUri,
+        script: inputValue,
+      });
+      setSaveResponseValue(json.success ?? json.message ?? 'Saved!');
     } catch (e: any) {
       setSaveResponseValue(`Error: ${e?.message ?? 'Failed to save'}`);
     } finally {
@@ -223,6 +244,7 @@ function CreateDom() {
     alignItems: 'center',
     gap: 12,
     marginTop: 16,
+    flexWrap: 'wrap',
   };
 
   const saveButton: React.CSSProperties = {
@@ -318,6 +340,27 @@ function CreateDom() {
     fontSize: 12,
   };
 
+  const selectRow: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 12,
+    flexWrap: 'wrap',
+  };
+
+  const selectStyle: React.CSSProperties = {
+    minWidth: 220,
+    padding: '7px 10px',
+    borderRadius: 999,
+    border: '1px solid rgba(31,41,55,0.9)',
+    background:
+      'linear-gradient(135deg, rgba(15,23,42,0.96), rgba(17,24,39,1))',
+    color: '#e5e7eb',
+    fontSize: 12,
+    outline: 'none',
+  };
+
   return (
     <div style={{ ...outerShell, opacity: isPending ? 0.9 : 1 }}>
       <div style={layout}>
@@ -329,10 +372,50 @@ function CreateDom() {
               <span style={headerBadge}>Live Preview</span>
             </h1>
             <p style={headerSub}>
-              Edit the server&#39;s <code>remoteDom</code> script and see changes reflected
-              instantly in the preview panel. Perfect for iterating on UI flows powered by
-              Remote DOM.
+              Pick a Remote DOM script from the list, edit it, and see changes reflected
+              instantly in the preview panel. Click <b>Save</b> to persist the selected
+              script back to your Node + PostgreSQL backend.
             </p>
+          </div>
+
+          {/* Script selector */}
+          <div style={selectRow}>
+            <div>
+              <span style={label}>Script Resource</span>
+              <select
+                style={selectStyle}
+                value={selectedUri}
+                disabled={listLoading || scripts.length === 0}
+                onChange={async (e) => {
+                  const nextUri = e.target.value;
+                  setSelectedUri(nextUri);
+                  setInputValue('');
+                  setScriptContent('');
+                  setSaveResponseValue('');
+                  if (nextUri) {
+                    await loadScript(nextUri);
+                  }
+                }}
+              >
+                <option value="">
+                  {listLoading ? 'Loading scripts…' : 'Select a script'}
+                </option>
+                {scripts.map((s) => (
+                  <option key={s.uri} value={s.uri}>
+                    {s.name || s.uri}
+                  </option>
+                ))}
+              </select>
+              {selectedUri && (
+                <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
+                  Editing script for: <code>{selectedUri}</code>
+                </p>
+              )}
+            </div>
+
+            <span style={subtlePill}>
+              Scripts loaded: <strong>{scripts.length}</strong>
+            </span>
           </div>
 
           <label style={label}>
@@ -346,23 +429,24 @@ function CreateDom() {
           </label>
 
           <p style={helperText}>
-            Changes are auto-applied to the preview after a short pause. Click <b>Save</b> to
-            persist the script to your Node + PostgreSQL backend.
+            Changes are auto-applied to the preview after a short pause. The{' '}
+            <b>Save script</b> button will update the currently selected resource in the
+            database.
           </p>
 
           {loading && (
             <p style={{ marginTop: 8, fontSize: 12, color: '#e5e7eb' }}>
-              Loading script from server…
+              Loading script content…
             </p>
           )}
 
-          {error && <div style={errorBanner}>Error loading script: {error}</div>}
+          {error && <div style={errorBanner}>Error: {error}</div>}
 
           <div style={buttonRow}>
             <button
               style={saveButton}
               onClick={postCall}
-              disabled={saving || !!loading}
+              disabled={saving || loading || listLoading || !selectedUri}
             >
               {saving ? (
                 <>
@@ -399,8 +483,8 @@ function CreateDom() {
             <div>
               <h2 style={previewTitle}>Live Preview</h2>
               <p style={previewSubtitle}>
-                This panel renders your script using{' '}
-                <code>UIResourceRenderer</code> and the custom{' '}
+                This panel renders the selected script using{' '}
+                <code>UIResourceRenderer</code> and your custom{' '}
                 <code>radixComponentLibrary</code>.
               </p>
             </div>
@@ -415,7 +499,7 @@ function CreateDom() {
           <div style={previewShell}>
             {scriptContent.trim() ? (
               <UIResourceRenderer
-                key={`radix-${scriptContent}`}
+                key={`radix-${selectedUri}-${scriptContent}`}
                 resource={mockResourceReact}
                 remoteDomProps={{
                   library: radixComponentLibrary,
@@ -426,7 +510,8 @@ function CreateDom() {
               <div style={previewEmpty}>
                 No script content to render yet.
                 <br />
-                Start by editing the Remote DOM script on the left.
+                Choose a script from the dropdown and start editing the Remote DOM script
+                on the left.
               </div>
             )}
           </div>
@@ -446,4 +531,4 @@ function CreateDom() {
   );
 }
 
-export default CreateDom;
+export default Configurator;

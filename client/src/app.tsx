@@ -5,7 +5,7 @@ import {
   isUIResource,
 } from '@mcp-ui/client';
 import type { Resource } from '@modelcontextprotocol/sdk/types';
-import { remoteElements } from './remoteDomLibrary';
+import { remoteElements } from './radix';
 import { radixComponentLibrary } from './radix';
 
 type UIResourceBlock = {
@@ -50,23 +50,22 @@ const App: React.FC = () => {
   }, [variant]);
 
   const handleUIAction = async (result: UIActionResult) => {
-    console.log('UI action from resource:', result);
-
     switch (result.type) {
       case 'notify':
         alert(`Notification: ${result.payload.message}`);
         break;
       case 'intent':
         console.log('Intent:', result.payload.intent, result.payload.params);
-        postCall(result);
+        saveUIAction(result);
         break;
       case 'tool':
         console.log('Tool call:', result.payload.toolName, result.payload.params);
-        postCall(result);
+        saveUIAction(result);
         break;
       case 'prompt':
+        break;
       case 'link':
-        postCall(result);
+        saveUIAction(result);
         console.log('Other action:', result);
         break;
     }
@@ -77,27 +76,31 @@ const App: React.FC = () => {
     return { status: 'handled' as const };
   };
 
-  const postCall = async (input: any) => {
+  const saveUIAction = async (input: any) => {
     await apiCall('http://localhost:8081/user/action', input);
   };
 
-  async function apiCall(resourceEndpoint: string, input: any) {
-    const res = await fetch(resourceEndpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        sessionId: 'user-123',
-        resourceUri: input?.uri ?? resource?.resource?.uri,
-        actionType: input.type,
-        toolName: (input as any).payload?.toolName,
-        payload: input.payload?.params || input.payload || {},
-      }),
-    });
-    const json = await res.json();
-    return json;
+async function apiCall(resourceEndpoint: string, input: any) {
+  const res = await fetch(resourceEndpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: 'user-123',
+      resourceUri: input?.uri ?? resource?.resource?.uri,
+      actionType: input.type,
+      toolName: (input as any).payload?.toolName,
+      payload: input.payload?.params || input.payload || {},
+    }),
+  });
+  const json = await res.json();
+
+  // Case 1: backend returns a full UIResource
+  if (isUIResource(json)) {
+    setResource(json);
   }
+  return json;
+}
+
 
   const fontFamily =
     '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
@@ -248,6 +251,7 @@ const App: React.FC = () => {
     background: 'radial-gradient(circle at top, #0f172a, #020617)',
     border: '1px solid rgba(31,41,55,1)',
     minHeight: 260,
+    maxWidth: 500,
     boxShadow: '0 18px 45px rgba(15,23,42,0.9)'
   };
 
@@ -373,6 +377,12 @@ const App: React.FC = () => {
           <div style={rendererShell}>
             {resource ? (
               <UIResourceRenderer
+                key={
+                  resource.resource?.uri ||
+                  ((resource.resource as any).mimeType || '') +
+                    ':' +
+                    (((resource.resource as any).text || '') as string).length
+                }
                 resource={resource.resource}
                 onUIAction={handleUIAction}
                 remoteDomProps={{
@@ -387,56 +397,6 @@ const App: React.FC = () => {
               </div>
             )}
           </div>
-
-          {/* Optional second renderer (kept commented for now)
-          <div style={{ marginTop: 8 }}>
-            <h4 style={{ fontSize: 13, color: '#9ca3af', marginBottom: 6 }}>
-              HTML + Remote DOM (advanced)
-            </h4>
-            <div
-              style={{
-                ...rendererShell,
-                background: 'linear-gradient(135deg, #020617, #0b1120)',
-                borderStyle: 'dashed',
-              }}
-            >
-              {resource ? (
-                <UIResourceRenderer
-                  resource={resource.resource}
-                  onUIAction={handleUIAction}
-                  supportedContentTypes={['rawHtml', 'externalUrl', 'remoteDom']}
-                  htmlProps={{
-                    style: {
-                      borderRadius: 12,
-                      overflow: 'hidden',
-                      minHeight: 220,
-                    },
-                    sandboxPermissions: 'allow-popups',
-                    iframeProps: {
-                      ref: iframeRef,
-                      title: `MCP-UI iframe (${variant})`,
-                    },
-                    iframeRenderData: {
-                      theme: variant === 'raw-dark' ? 'dark' : 'light',
-                      userId: 'demo-user-123',
-                      debug: true,
-                    },
-                    autoResizeIframe: { height: true },
-                  }}
-                  remoteDomProps={{
-                    library: radixComponentLibrary,
-                    remoteElements: remoteElements,
-                  }}
-                />
-              ) : (
-                <div style={emptyState}>
-                  This secondary renderer can demonstrate HTML + Remote DOM once a resource is
-                  loaded.
-                </div>
-              )}
-            </div>
-          </div>
-          */}
         </div>
       </div>
     </div>

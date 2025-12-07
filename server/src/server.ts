@@ -2,9 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import { createUIResource } from '@mcp-ui/server';
 import { buyProductRemoteDomScript, checklistRemoteDomScript, feedbackFormScript, remoteDomScript } from './remote-dom-scrips';
-import { getRemoteDomByUri, upsertRemoteDom } from './remoteDomRepo';
+import { getRemoteDomByUri, getRemoteDoms, upsertRemoteDom } from './remoteDomRepo';
 import { listUiActions, saveUiAction } from './uiActionsRepo';
-
+const url = require('url');
 const app = express();
 const port = 8081;
 
@@ -321,7 +321,7 @@ app.get('/ui/:variant', (req, res) => {
 });
 
 // Save / update Remote DOM
-app.post('/remote-dom', async (req, res) => {
+app.post('/remote-dom/script', async (req, res) => {
   try {
     const { uri='ui://demo/remote-dom-demo', script, framework='react', 
       description='Remote DOM script' } = req.body;
@@ -341,15 +341,22 @@ app.post('/remote-dom', async (req, res) => {
 // Get Remote DOM by uri
 app.get('/remote-dom/', async (req, res) => {
   try {
-    const uri = 'ui://demo/remote-dom-demo';
+    const uri = 'ui://demo/product-1';
     const resource = await getRemoteDomByUri(uri);
 
     if (!resource) {
       return res.status(404).json({ error: 'not_found' });
     }
-    
-    const uiResource = createUIResource({
-      uri: 'ui://demo/remote-dom-demo',
+    res.json(createNewUIResource(resource));
+  } catch (err: any) {
+    console.error('Error fetching remote dom:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+function createNewUIResource(resource: any){
+  return createUIResource({
+      uri: resource.uri,
       content: {
         type: 'remoteDom',
         script: resource.script,
@@ -364,18 +371,13 @@ app.get('/remote-dom/', async (req, res) => {
         },
       },
     });
-
-    res.json(uiResource);
-  } catch (err: any) {
-    console.error('Error fetching remote dom:', err);
-    res.status(500).json({ error: 'internal_error' });
-  }
-});
+}
 
 // Get Remote DOM by uri
 app.get('/remote-dom/script', async (req, res) => {
   try {
-    const uri = 'ui://demo/remote-dom-demo';
+    var url_parts = url.parse(req.url, true);
+    const uri = url_parts.query.uri ? decodeURIComponent(url_parts.query.uri) : 'ui://demo/product-1';
     const resource = await getRemoteDomByUri(uri);
 
     if (!resource) {
@@ -383,6 +385,22 @@ app.get('/remote-dom/script', async (req, res) => {
     }
     
     res.json({script: resource.script});
+  } catch (err: any) {
+    console.error('Error fetching remote dom:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// Get Remote DOMs
+app.get('/remote-dom/scripts', async (req, res) => {
+  try {
+    const resource = await getRemoteDoms();
+
+    if (!resource || !resource.length) {
+      return res.status(404).json({ error: 'not_found' });
+    }
+    
+    res.json({scripts: resource});
   } catch (err: any) {
     console.error('Error fetching remote dom:', err);
     res.status(500).json({ error: 'internal_error' });
@@ -410,8 +428,17 @@ app.post('/user/action', async (req, res) => {
       toolName,
       payload: payload ?? {},
     });
-
-    res.json(saved);
+    console.log(actionType, " ", payload.uri );
+    if(actionType === 'tool' && payload.uri){
+        const resource = await getRemoteDomByUri(payload.uri);
+        if (resource) {
+          res.json(createNewUIResource(resource));
+        }else {
+          res.json(saved);
+        }
+    }else {
+        res.json(saved);
+    }
   } catch (err: any) {
     console.error('Error saving UI action:', err);
     res.status(500).json({ error: 'internal_error' });
