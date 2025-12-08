@@ -355,8 +355,8 @@ function Configurator() {
     borderRadius: 999,
     border: '1px solid rgba(31,41,55,0.9)',
     background:
-      'linear-gradient(135deg, rgba(15,23,42,0.96), rgba(17,24,39,1))',
-    color: '#e5e7eb',
+      'linear-gradient(135deg, rgba(235, 236, 240, 0.96), rgba(215, 217, 220, 1))',
+    color: '#0c0c0cff',
     fontSize: 12,
     outline: 'none',
   };

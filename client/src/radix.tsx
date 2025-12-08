@@ -1254,6 +1254,117 @@ const RadixBadge = React.forwardRef<
 RadixBadge.displayName = 'RadixBadge';
 
 
+const RadixNumberInput = React.forwardRef<
+  HTMLInputElement,
+  {
+    value?: string;
+    placeholder?: string;
+    maxlength?: number;
+    disabled?: boolean;
+    allowdecimal?: boolean;
+    onChange?: (value: string | React.ChangeEvent<HTMLInputElement>) => void;
+    [key: string]: any;
+  }
+>((props, ref) => {
+  const { value, placeholder, maxlength, disabled=false, allowdecimal=false, onChange, ...rest } = props;
+ console.log('input:', maxlength, placeholder);
+  // Strip children / dangerouslySetInnerHTML so React doesn't treat
+  // this <input> as having children (inputs are void elements).
+  const {
+    children: _omitChildren,
+    dangerouslySetInnerHTML: _omitHtml,
+    ...safeRest
+  } = rest;
+
+  // Local state controls what the user sees
+  const [internalValue, setInternalValue] = React.useState<string>(value ?? '');
+
+  // If parent *does* pass a value prop (e.g. from a React form),
+  // sync it once in a controlled manner.
+  React.useEffect(() => {
+    if (typeof value === 'string') {
+      setInternalValue(value);
+    }
+  }, [value]);
+
+  const parsedMaxLength =
+    typeof maxlength === 'number'
+      ? maxlength
+      : maxlength != null
+      ? Number(maxlength)
+      : undefined;
+
+  const decimalAllowed =
+    allowdecimal === true || allowdecimal === 'true' ? true : false;
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let next = e.target.value;
+    if (decimalAllowed) {
+      // Allow digits + at most 1 decimal point → normalize invalid input
+      next = next.replace(/[^\d.]/g, '');     // remove non-numeric except dot
+      const parts = next.split('.');
+
+      if (parts.length > 2) {
+        // More than one dot → keep only the first dot
+        next = parts[0] + '.' + parts.slice(1).join('');
+        next = next.replace(/\./g, (m, idx) => (idx === parts[0].length ? '.' : ''));
+      }
+      // Prevent a leading dot → ".5" → "0.5"
+      if (next.startsWith('.')) next = '0' + next;
+    } else {
+      // Digits only
+      next = next.replace(/\D+/g, '');
+    }
+   
+    if (
+      typeof parsedMaxLength === 'number' &&
+      Number.isFinite(parsedMaxLength) &&
+      parsedMaxLength > 0 &&
+      next.length > parsedMaxLength
+    ) {
+      next = next.slice(0, parsedMaxLength);
+    }
+
+    setInternalValue(next);
+    e.target.value = next;
+
+    if (!onChange) return;
+    // IMPORTANT: send only the primitive string, not the event
+    onChange(next);
+  };
+
+   return React.createElement('input', {
+    ref,
+    type: 'text',          // we enforce numeric ourselves
+    inputMode: 'numeric',  // numeric keyboard on mobile
+    pattern: '\\d*',
+    value: internalValue,
+    placeholder,
+    disabled,
+    maxLength: parsedMaxLength,
+    onChange: handleChange,
+    style: {
+      width: '100%',
+      boxSizing: 'border-box',
+      padding: '9px 11px',
+      borderRadius: '10px',
+      border: `1px solid ${colors.borderSubtle}`,
+      outline: 'none',
+      fontSize: '14px',
+      lineHeight: 1.4,
+      fontFamily,
+      backgroundColor: colors.surface,
+      boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
+      color: colors.text,
+      transition:
+        'border-color 0.16s ease-out, box-shadow 0.16s ease-out, background-color 0.16s ease-out',
+    },
+    ...safeRest, // ✅ safe props, no children
+  });
+});
+RadixNumberInput.displayName = 'RadixNumberInput';
+
+
 export const radixComponentLibrary: ComponentLibrary = {
   name: 'radix',
   elements: [
@@ -1406,6 +1517,20 @@ export const radixComponentLibrary: ComponentLibrary = {
       },
       eventMapping: {},
     },
+    {
+      tagName: 'ui-number-input',
+      component: RadixNumberInput,
+      propMapping: {
+        value: 'value',
+        placeholder: 'placeholder',
+        maxlength: 'maxlength',
+        disabled: 'disabled',
+        allowdecimal: 'allowdecimal'
+      },
+      eventMapping: {
+        change: 'onChange',
+      },
+    },
 
   ],
 };
@@ -1468,6 +1593,12 @@ export const remoteCustomStackDefinition: RemoteElementConfiguration = {
   remoteEvents: ['']
 };
 
+export const remoteNumberInputDefinition: RemoteElementConfiguration = {
+  tagName: 'ui-number-input',
+  remoteAttributes: ['value', 'placeholder', 'maxlength', 'disabled', 'allowdecimal'],
+  remoteEvents: ['change'],
+};
+
 export  const remoteElements = [
   remoteChartDefinition,
   remoteSmallTextDefinition,
@@ -1479,5 +1610,6 @@ export  const remoteElements = [
   remoteFeedbackFormDefinition,
   remoteChecklistFormDefinition,
   remoteCheckboxDefinition,
-  remoteBadgeDefinition
+  remoteBadgeDefinition,
+  remoteNumberInputDefinition
 ];

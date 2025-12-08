@@ -18,21 +18,12 @@ type Variant = (typeof VARIANTS)[number];
 
 const SERVER_BASE = 'http://localhost:8081';
 
-type CartItem = {
-  id: string;
-  name: string;
-  price: number;
-  image?: string;
-  quantity: number;
-};
-
 const App: React.FC = () => {
   const [variant, setVariant] = useState<Variant>('remote-dom');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resource, setResource] = useState<UIResourceBlock | null>(null);
   const [lastAction, setLastAction] = useState<any>(null);
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
@@ -40,8 +31,6 @@ const App: React.FC = () => {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    console.log('variant: ', variant);
-
     const url =
       variant === 'remote-dom' ? `${SERVER_BASE}/remote-dom/` : `${SERVER_BASE}/ui/${variant}`;
 
@@ -49,7 +38,6 @@ const App: React.FC = () => {
       .then((res) => res.json())
       .then((json) => {
         if (isUIResource(json)) {
-          console.log('server response: ', json);
           setResource(json);
         } else {
           setError('Server did not return a UIResource');
@@ -62,49 +50,22 @@ const App: React.FC = () => {
   }, [variant]);
 
   const handleUIAction = async (result: UIActionResult) => {
-    console.log('UI action from resource:', result);
-
-    // 1) Intercept addToCart tool events and handle them only in the parent
-    if (result.type === 'tool' && (result as any).payload?.toolName === 'addToCart') {
-      const params: any = (result as any).payload?.params || {};
-      const id = String(params.productId ?? params.id ?? 'unknown');
-      const name = String(params.name ?? params.title ?? 'Product');
-      const price = Number(params.price ?? params.unitPrice ?? 0);
-      const image = typeof params.image === 'string' ? params.image : undefined;
-
-      setCartItems((prev) => {
-        const existing = prev.find((item) => item.id === id);
-        if (existing) {
-          return prev.map((item) =>
-            item.id === id ? { ...item, quantity: item.quantity + 1 } : item,
-          );
-        }
-        return [...prev, { id, name, price, image, quantity: 1 }];
-      });
-
-      setLastAction(result);
-      return { status: 'handled' as const };
-    }
-
-    // 2) Everything else still goes through your backend
     switch (result.type) {
       case 'notify':
         alert(`Notification: ${result.payload.message}`);
         break;
       case 'intent':
         console.log('Intent:', result.payload.intent, result.payload.params);
-        await saveUIAction(result);
+        saveUIAction(result);
         break;
       case 'tool':
         console.log('Tool call:', result.payload.toolName, result.payload.params);
-        await saveUIAction(result);
-        if(result.payload.toolName === 'submitPayment'){
-          setCartItems([]);
-        }
+        saveUIAction(result);
         break;
       case 'prompt':
+        break;
       case 'link':
-        await saveUIAction(result);
+        saveUIAction(result);
         console.log('Other action:', result);
         break;
     }
@@ -116,114 +77,84 @@ const App: React.FC = () => {
   };
 
   const saveUIAction = async (input: any) => {
-    const json = await apiCall(`${SERVER_BASE}/user/action`, input);
-    // If the tool server returns a new UIResource, render it
-    if (json && isUIResource(json)) {
-      setResource(json);
-    }
+    await apiCall('http://localhost:8081/user/action', input);
   };
 
-  async function apiCall(resourceEndpoint: string, input: any) {
-    const res = await fetch(resourceEndpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        sessionId: 'user-123',
-        resourceUri: input?.uri ?? resource?.resource?.uri,
-        actionType: input.type,
-        toolName: (input as any).payload?.toolName,
-        payload: input.payload?.params || input.payload || {},
-      }),
-    });
-    const json = await res.json();
-    
-    // Case 1: backend returns a full UIResource
-    if (isUIResource(json)) {
-      setResource(json);
-    }
-    return json;
+async function apiCall(resourceEndpoint: string, input: any) {
+  const res = await fetch(resourceEndpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: 'user-123',
+      resourceUri: input?.uri ?? resource?.resource?.uri,
+      actionType: input.type,
+      toolName: (input as any).payload?.toolName,
+      payload: input.payload?.params || input.payload || {},
+    }),
+  });
+  const json = await res.json();
+
+  // Case 1: backend returns a full UIResource
+  if (isUIResource(json)) {
+    setResource(json);
   }
+  return json;
+}
 
-  // ---- cart derived values ----
-  const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-  const cartTotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-   const handleCheckout = async () => {
-    if (!cartItems.length) return;
+  const fontFamily =
+    '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 
-    const syntheticAction: UIActionResult = {
-      type: 'tool',
-      payload: {
-        toolName: 'uiInteraction',
-        params: {
-          uri: 'ui://demo/payment', // your payment Remote DOM resource URI
-          cart: cartItems,
-          total: cartTotal,
-          startedAt: new Date().toISOString(),
-        },
-      },
-    } as any;
-
-    setLastAction(syntheticAction);
-    await saveUIAction(syntheticAction as any);
-  };
-
-  // ---- styles (from your existing stylized version, extended for cart) ----
   const shellStyle: React.CSSProperties = {
     minHeight: '100vh',
     margin: 0,
     padding: 24,
     boxSizing: 'border-box',
     background:
-      'radial-gradient(circle at top left, rgba(129,140,248,0.35), transparent 55%), radial-gradient(circle at bottom right, rgba(45,212,191,0.22), #020617)',
-    fontFamily:
-      '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-    color: '#e5e7eb',
+      'radial-gradient(circle at top, rgba(129,140,248,0.25), transparent 55%), radial-gradient(circle at bottom, rgba(236,72,153,0.16), #020617)',
     display: 'flex',
-    justifyContent: 'center',
     alignItems: 'stretch',
+    justifyContent: 'center',
+    fontFamily,
   };
 
   const layoutStyle: React.CSSProperties = {
     width: '100%',
     maxWidth: 1280,
     display: 'grid',
-    // gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 1.3fr)',
     gridTemplateColumns: '320px minmax(0, 1fr)',
     gap: 24,
-    alignItems: 'flex-start',
+    color: '#0f172a',
   };
 
   const panelCard: React.CSSProperties = {
+    background: 'rgba(15,23,42,0.95)',
     borderRadius: 20,
     padding: 20,
+    boxShadow: '0 24px 60px rgba(15,23,42,0.75)',
+    border: '1px solid rgba(148,163,184,0.35)',
+    color: '#e5e7eb',
     boxSizing: 'border-box',
-    background:
-      'linear-gradient(135deg, rgba(15,23,42,0.98), rgba(15,23,42,0.94))',
-    border: '1px solid rgba(148,163,184,0.45)',
-    boxShadow: '0 24px 60px rgba(15,23,42,0.85)',
   };
 
   const headerTitle: React.CSSProperties = {
-    margin: 0,
     fontSize: 20,
     fontWeight: 700,
-    letterSpacing: '0.03em',
-    textTransform: 'uppercase',
-    color: '#e5e7eb',
+    letterSpacing: '0.01em',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
   };
 
   const badgeStyle: React.CSSProperties = {
     fontSize: 11,
-    padding: '4px 10px',
-    borderRadius: 999,
-    border: '1px solid rgba(129,140,248,0.8)',
-    background: 'rgba(30,64,175,0.6)',
-    color: '#c7d2fe',
-    textTransform: 'uppercase',
     fontWeight: 600,
+    padding: '4px 8px',
+    borderRadius: 999,
+    border: '1px solid rgba(129,140,248,0.7)',
+    color: '#a5b4fc',
+    background: 'rgba(30,64,175,0.4)',
+    textTransform: 'uppercase',
   };
 
   const subText: React.CSSProperties = {
@@ -233,31 +164,32 @@ const App: React.FC = () => {
     lineHeight: 1.5,
   };
 
-  const labelStyle: React.CSSProperties = {
-    display: 'block',
-    fontSize: 11,
-    textTransform: 'uppercase',
-    letterSpacing: '0.12em',
-    color: '#9ca3af',
-    marginTop: 16,
-    marginBottom: 6,
-  };
-
   const selectStyle: React.CSSProperties = {
     width: '100%',
-    borderRadius: 999,
-    padding: '8px 12px',
+    marginTop: 6,
+    padding: '8px 10px',
+    borderRadius: 10,
     border: '1px solid rgba(55,65,81,0.9)',
     background:
-      'linear-gradient(135deg, rgba(15,23,42,0.96), rgba(17,24,39,1))',
-    color: '#e5e7eb',
-    fontSize: 12,
+      'linear-gradient(135deg, rgba(15,23,42,0.86), rgba(17,24,39,0.96))',
+    color: '#ebebf1ff',
+    fontSize: 13,
     outline: 'none',
+    boxShadow: '0 1px 2px rgba(15,23,42,0.6)',
   };
 
   const optionStyle: React.CSSProperties = {
-    backgroundColor: '#020617',
-    color: '#e5e7eb',
+    color: '#101010ff',
+  };
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: 12,
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
+    color: '#9ca3af',
+    marginTop: 16,
+    display: 'block',
   };
 
   const jsonCard: React.CSSProperties = {
@@ -320,7 +252,7 @@ const App: React.FC = () => {
     border: '1px solid rgba(31,41,55,1)',
     minHeight: 260,
     maxWidth: 500,
-    boxShadow: '0 18px 45px rgba(15,23,42,0.9)',
+    boxShadow: '0 18px 45px rgba(15,23,42,0.9)'
   };
 
   const emptyState: React.CSSProperties = {
@@ -336,87 +268,15 @@ const App: React.FC = () => {
     textAlign: 'center',
   };
 
-  // cart styles
-  const cartCard: React.CSSProperties = {
-    marginTop: 16,
-    padding: 10,
-    borderRadius: 12,
-    background:
-      'linear-gradient(135deg, rgba(15,23,42,0.95), rgba(3,7,18,1))',
-    border: '1px solid rgba(55,65,81,0.9)',
-    boxShadow: 'inset 0 0 0 1px rgba(15,23,42,0.7)',
-    fontSize: 12,
-  };
-
-  const cartHeaderRow: React.CSSProperties = {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  };
-
-  const cartList: React.CSSProperties = {
-    listStyle: 'none',
-    margin: 0,
-    padding: 0,
-    maxHeight: 160,
-    overflowY: 'auto',
-  };
-
-  const cartItemRow: React.CSSProperties = {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '4px 0',
-    borderBottom: '1px dashed rgba(55,65,81,0.8)',
-  };
-
-  const smallMuted: React.CSSProperties = {
-    fontSize: 11,
-    color: '#9ca3af',
-  };
-
-  const cartPrice: React.CSSProperties = {
-    fontWeight: 600,
-    color: '#e5e7eb',
-  };
-
-  const clearCartButton: React.CSSProperties = {
-    marginTop: 8,
-    fontSize: 11,
-    borderRadius: 999,
-    padding: '4px 10px',
-    background: 'rgba(127,29,29,0.16)',
-    border: '1px solid rgba(248,113,113,0.7)',
-    color: '#fecaca',
-    cursor: 'pointer',
-  };
-
-  const checkoutButton: React.CSSProperties = {
-    fontSize: 11,
-    borderRadius: 999,
-    padding: '4px 14px',
-    background: 'rgba(34,197,94,0.22)',
-    border: '1px solid rgba(34,197,94,0.8)',
-    color: '#bbf7d0',
-    cursor: cartItems.length ? 'pointer' : 'default',
-    opacity: cartItems.length ? 1 : 0.5,
-  };
-
-  const cartButtonsRow: React.CSSProperties = {
-    marginTop: 8,
-    display: 'flex',
-    justifyContent: 'space-between',
-    gap: 8,
-  };
-
   return (
     <div style={shellStyle}>
       <div style={layoutStyle}>
         {/* Left panel */}
         <div style={panelCard}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={headerTitle}>MCP-UI PoC</h2>
+            <h2 style={headerTitle}>
+              MCP-UI PoC
+            </h2>
             <span style={badgeStyle}>Client 5.14.1</span>
           </div>
 
@@ -447,58 +307,6 @@ const App: React.FC = () => {
             <p style={{ marginTop: 12, fontSize: 12, color: '#fecaca' }}>
               Error: {error}
             </p>
-          )}
-
-{/* Cart panel */}
-          {cartItems.length > 0 && (
-            <>
-              <span style={labelStyle}>Cart</span>
-              <div style={cartCard}>
-                <div style={cartHeaderRow}>
-                  <span>
-                    Items: <strong>{cartCount}</strong>
-                  </span>
-                  <span>
-                    Total:{' '}
-                    <strong>
-                      ₹{cartTotal.toFixed(2)}
-                    </strong>
-                  </span>
-                </div>
-                <ul style={cartList}>
-                  {cartItems.map((item) => (
-                    <li key={item.id} style={cartItemRow}>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span>{item.name}</span>
-                        <span style={smallMuted}>
-                          Qty: {item.quantity} × ₹{item.price.toFixed(2)}
-                        </span>
-                      </div>
-                      <span style={cartPrice}>
-                        ₹{(item.price * item.quantity).toFixed(2)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                <div style={cartButtonsRow}>
-                   <button
-                    type="button"
-                    style={checkoutButton}
-                    disabled={!cartItems.length}
-                    onClick={handleCheckout}
-                  >
-                    Checkout
-                  </button>
-                <button
-                  type="button"
-                  style={clearCartButton}
-                  onClick={() => setCartItems([])}
-                >
-                  Clear cart
-                </button>
-                </div>
-              </div>
-            </>
           )}
 
           {resource && (
@@ -571,9 +379,9 @@ const App: React.FC = () => {
               <UIResourceRenderer
                 key={
                   resource.resource?.uri ||
-                  `${(resource.resource as any).mimeType ?? ''}:${
-                    ((resource.resource as any).text || '').length
-                  }`
+                  ((resource.resource as any).mimeType || '') +
+                    ':' +
+                    (((resource.resource as any).text || '') as string).length
                 }
                 resource={resource.resource}
                 onUIAction={handleUIAction}
