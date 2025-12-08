@@ -1259,63 +1259,90 @@ const RadixNumberInput = React.forwardRef<
   {
     value?: string;
     placeholder?: string;
-    maxlength?: number;
+    maxLength?: number | string;
     disabled?: boolean;
-    allowdecimal?: boolean;
-    onChange?: (value: string | React.ChangeEvent<HTMLInputElement>) => void;
+    allowdecimal?: boolean | string; // "true" / "false" or boolean
+    format?: 'plain' | 'card' | 'currency'; // NEW
+    currencysymbol?: string; // NEW, default "₹"
+    onChange?: (value: string) => void; // we always emit raw string
     [key: string]: any;
   }
 >((props, ref) => {
-  const { value, placeholder, maxlength, disabled=false, allowdecimal=false, onChange, ...rest } = props;
- console.log('input:', maxlength, placeholder);
-  // Strip children / dangerouslySetInnerHTML so React doesn't treat
-  // this <input> as having children (inputs are void elements).
   const {
-    children: _omitChildren,
-    dangerouslySetInnerHTML: _omitHtml,
-    ...safeRest
-  } = rest;
+    value,
+    placeholder,
+    maxLength,
+    disabled,
+    allowdecimal,
+    format = 'plain',
+    currencysymbol = '₹',
+    onChange,
+    ...rest
+  } = props;
 
-  // Local state controls what the user sees
-  const [internalValue, setInternalValue] = React.useState<string>(value ?? '');
+  // Backing "raw" numeric value (no spaces/commas, may include one dot)
+  const [rawValue, setRawValue] = React.useState<string>(value ?? '');
 
-  // If parent *does* pass a value prop (e.g. from a React form),
-  // sync it once in a controlled manner.
+  // Sync external value if provided
   React.useEffect(() => {
     if (typeof value === 'string') {
-      setInternalValue(value);
+      setRawValue(value);
     }
   }, [value]);
 
+  // Strip props that must not go on <input>
+  const {
+    children: _omitChildren,
+    dangerouslySetInnerHTML: _omitHtml,
+    value: _omitValue,
+    ...safeRest
+  } = rest;
+
   const parsedMaxLength =
-    typeof maxlength === 'number'
-      ? maxlength
-      : maxlength != null
-      ? Number(maxlength)
+    typeof maxLength === 'number'
+      ? maxLength
+      : maxLength != null
+      ? Number(maxLength)
       : undefined;
 
+  // Decide decimal behaviour:
+  // - currency → decimals allowed by default
+  // - card → decimals NOT allowed
+  // - plain → controlled by allowDecimal
+  const decimalAllowedExplicit =
+    allowdecimal === true || allowdecimal === 'true';
   const decimalAllowed =
-    allowdecimal === true || allowdecimal === 'true' ? true : false;
+    format === 'currency'
+      ? allowdecimal === 'false' || allowdecimal === false
+        ? false
+        : true
+      : format === 'card'
+      ? false
+      : decimalAllowedExplicit;
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let next = e.target.value;
+  const sanitizeToRaw = (input: string): string => {
+    let next = input;
+
     if (decimalAllowed) {
-      // Allow digits + at most 1 decimal point → normalize invalid input
-      next = next.replace(/[^\d.]/g, '');     // remove non-numeric except dot
-      const parts = next.split('.');
-
-      if (parts.length > 2) {
-        // More than one dot → keep only the first dot
-        next = parts[0] + '.' + parts.slice(1).join('');
-        next = next.replace(/\./g, (m, idx) => (idx === parts[0].length ? '.' : ''));
+      // Remove everything except digits and dot
+      next = next.replace(/[^\d.]/g, '');
+      // Only first dot
+      const firstDotIndex = next.indexOf('.');
+      if (firstDotIndex !== -1) {
+        // Keep first dot, remove all others
+        next =
+          next.slice(0, firstDotIndex + 1) +
+          next.slice(firstDotIndex + 1).replace(/\./g, '');
       }
-      // Prevent a leading dot → ".5" → "0.5"
-      if (next.startsWith('.')) next = '0' + next;
+      // Leading dot -> 0.x
+      if (next.startsWith('.')) {
+        next = '0' + next;
+      }
     } else {
       // Digits only
       next = next.replace(/\D+/g, '');
     }
-   
+
     if (
       typeof parsedMaxLength === 'number' &&
       Number.isFinite(parsedMaxLength) &&
@@ -1325,20 +1352,69 @@ const RadixNumberInput = React.forwardRef<
       next = next.slice(0, parsedMaxLength);
     }
 
-    setInternalValue(next);
-    e.target.value = next;
-
-    if (!onChange) return;
-    // IMPORTANT: send only the primitive string, not the event
-    onChange(next);
+    return next;
   };
 
-   return React.createElement('input', {
+  const formatDisplay = (raw: string): string => {
+    if (!raw) return '';
+
+    if (format === 'card') {
+      // group as "1234 5678 9012 3456"
+      const digitsOnly = raw.replace(/\D+/g, '');
+      return digitsOnly.replace(/(.{4})/g, '$1 ').trim();
+    }
+
+    if (format === 'currency') {
+      const num = Number(raw);
+      if (!isFinite(num)) return raw;
+      try {
+        const formatted = new Intl.NumberFormat('en-IN', {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 2,
+        }).format(num);
+        return `${currencysymbol} ${formatted}`;
+      } catch {
+        return raw;
+      }
+    }
+
+    return raw; // plain
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // User-typed string, including spaces/commas/symbols from previous formatting
+    let input = e.target.value;
+
+    // Remove currency symbol and spacing for parsing
+    if (format === 'currency' && currencysymbol) {
+      const sym = currencysymbol.trim();
+      if (sym && input.startsWith(sym)) {
+        input = input.slice(sym.length);
+      }
+    }
+    // Strip spaces and commas; sanitizeToRaw will handle digits/dot
+    input = input.replace(/[\s,]/g, '');
+
+    const nextRaw = sanitizeToRaw(input);
+    const nextDisplay = formatDisplay(nextRaw);
+
+    setRawValue(nextRaw);
+    e.target.value = nextDisplay;
+
+    if (onChange) {
+      // IMPORTANT: emit raw string (no spaces/commas/symbols)
+      onChange(nextRaw);
+    }
+  };
+
+  const displayValue = formatDisplay(rawValue);
+
+  return React.createElement('input', {
     ref,
-    type: 'text',          // we enforce numeric ourselves
-    inputMode: 'numeric',  // numeric keyboard on mobile
-    pattern: '\\d*',
-    value: internalValue,
+    type: 'text',
+    inputMode: decimalAllowed ? 'decimal' : 'numeric',
+    pattern: decimalAllowed ? '[0-9.]*' : '\\d*',
+    value: displayValue,
     placeholder,
     disabled,
     maxLength: parsedMaxLength,
@@ -1359,11 +1435,57 @@ const RadixNumberInput = React.forwardRef<
       transition:
         'border-color 0.16s ease-out, box-shadow 0.16s ease-out, background-color 0.16s ease-out',
     },
-    ...safeRest, // ✅ safe props, no children
+    ...safeRest,
   });
 });
 RadixNumberInput.displayName = 'RadixNumberInput';
 
+const RadixFormMessage = React.forwardRef<
+  HTMLDivElement,
+  {
+    text?: string;
+    variant?: 'info' | 'error' | 'success';
+    [key: string]: any;
+  }
+>(({ text, variant = 'info', ...rest }, ref) => {
+  let bg = 'rgba(51,65,85,0.55)';
+  let border = 'rgba(148,163,184,0.7)';
+  let color = '#e5e7eb';
+
+  if (variant === 'error') {
+    bg = 'rgba(127,29,29,0.18)';
+    border = 'rgba(248,113,113,0.85)';
+    color = '#fecaca';
+  } else if (variant === 'success') {
+    bg = 'rgba(22,163,74,0.16)';
+    border = 'rgba(74,222,128,0.85)';
+    color = '#bbf7d0';
+  }
+
+  const {
+    children: _omitChildren,
+    dangerouslySetInnerHTML: _omitHtml,
+    ...safeRest
+  } = rest;
+
+  return React.createElement('div', {
+    ref,
+    style: {
+      marginTop: 8,
+      borderRadius: 10,
+      padding: '8px 10px',
+      fontSize: 12,
+      lineHeight: 1.5,
+      backgroundColor: bg,
+      border: `1px solid ${border}`,
+      color,
+      fontFamily,
+    },
+    ...safeRest,
+    children: text,
+  });
+});
+RadixFormMessage.displayName = 'RadixFormMessage';
 
 export const radixComponentLibrary: ComponentLibrary = {
   name: 'radix',
@@ -1525,11 +1647,22 @@ export const radixComponentLibrary: ComponentLibrary = {
         placeholder: 'placeholder',
         maxlength: 'maxlength',
         disabled: 'disabled',
-        allowdecimal: 'allowdecimal'
+        allowdecimal: 'allowdecimal',
+        format: 'format',             
+        currencysymbol: 'currencysymbol'
       },
       eventMapping: {
         change: 'onChange',
       },
+    },
+    {
+      tagName: 'ui-form-message',
+      component: RadixFormMessage,
+      propMapping: {
+        text: 'text',
+        variant: 'variant',
+      },
+      eventMapping: {},
     },
 
   ],
@@ -1595,8 +1728,14 @@ export const remoteCustomStackDefinition: RemoteElementConfiguration = {
 
 export const remoteNumberInputDefinition: RemoteElementConfiguration = {
   tagName: 'ui-number-input',
-  remoteAttributes: ['value', 'placeholder', 'maxlength', 'disabled', 'allowdecimal'],
+  remoteAttributes: ['value', 'placeholder', 'maxlength', 'disabled', 'allowdecimal', 'format', 'currencysymbol'],
   remoteEvents: ['change'],
+};
+
+export const remoteFormMessageDefinition: RemoteElementConfiguration = {
+  tagName: 'ui-form-message',
+  remoteAttributes: ['text', 'variant'],
+  remoteEvents: [],
 };
 
 export  const remoteElements = [
@@ -1611,5 +1750,6 @@ export  const remoteElements = [
   remoteChecklistFormDefinition,
   remoteCheckboxDefinition,
   remoteBadgeDefinition,
-  remoteNumberInputDefinition
+  remoteNumberInputDefinition,
+  remoteFormMessageDefinition
 ];
